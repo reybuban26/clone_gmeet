@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd /c \"dir /s /b C:\\\\Users\\\\SMXLT-090425-01\\\\Documents\\\\clone_gmeet\\\\\")",
+      "Bash(php artisan *)",
+      "Bash(PowerShell -Command \"ls 'C:\\\\Users\\\\SMXLT-090425-01\\\\Documents\\\\clone_gmeet\\\\vendor\\\\filament\\\\filament\\\\src\\\\Resources' | Select-Object Name\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\SMXLT-090425-01\\\\Documents\\\\clone_gmeet\\\\vendor\" | Select-Object Name | Where-Object { $_.Name -match \"filament\" })"
+    ]
+  }
+}
