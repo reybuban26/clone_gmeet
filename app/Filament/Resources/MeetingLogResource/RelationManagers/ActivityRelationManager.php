@@ -18,6 +18,7 @@ class ActivityRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Timestamp')
                     ->dateTime('H:i:s · M j, Y', timezone: 'Asia/Manila')
+                    ->timezone('Asia/Manila')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('action')

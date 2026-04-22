@@ -105,6 +105,7 @@ class MeetingLogResource extends Resource
                 TextColumn::make('created_at')
                     ->label('Started At')
                     ->dateTime('M j, Y · H:i', timezone: 'Asia/Manila')
+                    ->timezone('Asia/Manila')
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')

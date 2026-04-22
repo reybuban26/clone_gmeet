@@ -8,15 +8,17 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Support\Enums\FontFamily;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+
+// TAMA AT EXACT V4 IMPORTS: Wala nang "Tables" sa gitna!
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
 
 class MeetingResource extends Resource
 {
@@ -78,6 +80,7 @@ class MeetingResource extends Resource
 
                 TextColumn::make('created_at')
                     ->dateTime()
+                    ->timezone('Asia/Manila') // Philippine Time!
                     ->sortable(),
             ])
             ->filters([
@@ -88,12 +91,13 @@ class MeetingResource extends Resource
                         'ended'   => 'Ended',
                     ]),
             ])
+            // TAMA AT EXACT V4 METHODS:
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
                 DeleteAction::make(),
             ])
-            ->bulkActions([
+            ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),

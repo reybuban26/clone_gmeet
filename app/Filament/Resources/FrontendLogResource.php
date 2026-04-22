@@ -8,15 +8,17 @@ use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\ViewAction;
 use Filament\Support\Enums\FontFamily;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+
+// TAMA AT EXACT V4 IMPORTS: Wala nang "Tables" sa gitna!
+use Filament\Actions\DeleteAction;
+use Filament\Actions\ViewAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
 
 class FrontendLogResource extends Resource
 {
@@ -65,6 +67,7 @@ class FrontendLogResource extends Resource
 
                 TextColumn::make('created_at')
                     ->dateTime()
+                    ->timezone('Asia/Manila') // Philippine Time!
                     ->sortable(),
             ])
             ->filters([
@@ -72,11 +75,12 @@ class FrontendLogResource extends Resource
                     ->label('Has Meeting Code')
                     ->query(fn (Builder $query) => $query->whereNotNull('meeting_code')),
             ])
+            // TAMA AT EXACT V4 METHODS:
             ->recordActions([
                 ViewAction::make(),
                 DeleteAction::make(),
             ])
-            ->bulkActions([
+            ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),

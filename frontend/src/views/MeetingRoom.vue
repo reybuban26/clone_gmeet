@@ -249,6 +249,8 @@ import { useRoute, useRouter } from 'vue-router'
 import Peer from 'peerjs'
 import axios from 'axios'
 import { useLogger } from '../composables/useLogger'
+// IMPORANTE: Import the fix-webm-duration library
+import fixWebmDuration from 'fix-webm-duration'
 
 const SVG_MIC_ON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`;
 const SVG_MIC_OFF = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>`;
@@ -327,6 +329,9 @@ let recordedChunks = []
 let resolveUploadPromise = null
 let audioContext = null;
 let audioDestination = null;
+
+let audioSources = []; 
+let recordingStartTime = null; // DAGDAG: Para i-track ang totoong tagal ng recording
 
 const localClass = computed(() => {
   if (remoteConnected.value && !screenSharing.value) return 'local-pip'
@@ -568,6 +573,7 @@ watch([micOn, cameraOn, screenSharing, remoteConnected, handRaised, remoteHandRa
 });
 
 // --- AUDIO MIXING & RECORDING INITIALIZATION ---
+
 function initAudioMixing() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -577,15 +583,17 @@ function initAudioMixing() {
   if (localStream && localStream.getAudioTracks().length > 0) {
     const localSource = audioContext.createMediaStreamSource(localStream);
     localSource.connect(audioDestination);
+    audioSources.push(localSource); 
   }
 }
 
-// Funtion para isama ang boses ng guest
+// Function para isama ang boses ng guest
 function addRemoteStreamToMix(stream) {
   if (!audioContext || !audioDestination) return;
   if (stream && stream.getAudioTracks().length > 0) {
     const remoteSource = audioContext.createMediaStreamSource(stream);
     remoteSource.connect(audioDestination);
+    audioSources.push(remoteSource); 
   }
 }
 
@@ -593,11 +601,11 @@ async function startRecording() {
   if (!localStream) return;
   
   try {
-    // Gumawa ng Audio Mixer para mapagsama lahat ng boses nang WALANG popup
     initAudioMixing();
     
-    // I-record ang audio destination stream (walang video, purong boses lang)
-    mediaRecorder = new MediaRecorder(audioDestination.stream, { mimeType: 'audio/webm' });
+    mediaRecorder = new MediaRecorder(audioDestination.stream, { 
+      mimeType: 'audio/webm'
+    });
     
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
@@ -608,15 +616,20 @@ async function startRecording() {
     mediaRecorder.onstop = async () => {
       const blob = new Blob(recordedChunks, { type: 'audio/webm' });
       recordedChunks = []; 
+      audioSources = []; 
       
-      await uploadRecording(blob);
-
-      if (resolveUploadPromise) {
-        resolveUploadPromise();
-      }
+      // DAGDAG: Calculate natin yung totoong duration para ma-fix natin bago i-upload
+      const duration = Date.now() - recordingStartTime;
+      
+      // Fix the WebM blob using the library!
+      fixWebmDuration(blob, duration, async (fixedBlob) => {
+        await uploadRecording(fixedBlob); // Upload the fixed blob!
+        if (resolveUploadPromise) resolveUploadPromise();
+      });
     };
 
-    mediaRecorder.start(); 
+    recordingStartTime = Date.now(); // Simulan ang timer
+    mediaRecorder.start(1000); 
     isRecording.value = true;
     logAction('recording_started', { meeting_code: route.params.code }).catch(() => {});
     
@@ -639,7 +652,6 @@ async function uploadRecording(blob) {
     });
     console.log("Audio Recording uploaded successfully");
   } catch (err) {
-    // KUNG MAY ERROR SA UPLOAD, MAG-A-ALERT DIN SA SCREEN MO
     const backendError = err.response?.data?.error || err.response?.data?.message || err.message;
     alert("RECORDING UPLOAD ERROR: " + backendError);
   }
@@ -652,7 +664,16 @@ onMounted(async () => {
   cameraOn.value = sessionStorage.getItem('cameraOn') !== 'false'
 
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    localStream = await navigator.mediaDevices.getUserMedia({ 
+      video: true, 
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 48000, 
+        channelCount: 2    
+      } 
+    })
     originalVideoTrack = localStream.getVideoTracks()[0]
     applyTrackStates()
     if (localVideoEl.value) localVideoEl.value.srcObject = localStream
@@ -841,7 +862,6 @@ function sendMessage() {
   
   const code = route.params.code;
   
-  // IPAPASA SA LARAVEL + ERROR ALERT
   axios.post(`${API_URL}/api/meetings/${code}/chats`, {
     meeting_code: code,
     sender: isHost.value ? 'Host' : 'Guest',
@@ -849,7 +869,6 @@ function sendMessage() {
   }).then(res => {
     console.log("Chat saved to DB!");
   }).catch(err => {
-    // KUNG MAY ERROR SA BACKEND, MAG-A-ALERT SA SCREEN MO!
     const backendError = err.response?.data?.error || err.response?.data?.message || err.message;
     alert("CHAT SYNC ERROR: " + backendError);
   });
