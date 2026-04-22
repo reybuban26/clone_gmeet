@@ -4,7 +4,7 @@ namespace App\Filament\Resources\MeetingLogResource\RelationManagers;
 
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Support\Enums\FontFamily;
-use Filament\Tables\Columns\TextColumn;
+use Filament\Tables;
 use Filament\Tables\Table;
 
 class ChatsRelationManager extends RelationManager
@@ -16,12 +16,12 @@ class ChatsRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                TextColumn::make('sent_at')
+                Tables\Columns\TextColumn::make('sent_at')
                     ->label('Time')
                     ->dateTime('H:i:s · M j, Y', timezone: 'Asia/Manila')
                     ->sortable(),
 
-                TextColumn::make('sender')
+                Tables\Columns\TextColumn::make('sender')
                     ->badge()
                     ->color(fn (string $state) => match ($state) {
                         'Host'  => 'warning',
@@ -29,7 +29,7 @@ class ChatsRelationManager extends RelationManager
                         default => 'gray',
                     }),
 
-                TextColumn::make('message')
+                Tables\Columns\TextColumn::make('message')
                     ->label('Message')
                     ->wrap()
                     ->searchable(),
@@ -37,6 +37,6 @@ class ChatsRelationManager extends RelationManager
             ->defaultSort('sent_at', 'asc')
             ->paginated([25, 50, 100])
             ->recordActions([])
-            ->bulkActions([]);
+            ->toolbarActions([]);
     }
 }

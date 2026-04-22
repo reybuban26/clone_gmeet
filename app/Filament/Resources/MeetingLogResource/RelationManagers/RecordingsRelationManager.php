@@ -2,10 +2,9 @@
 
 namespace App\Filament\Resources\MeetingLogResource\RelationManagers;
 
-use Filament\Actions\Action;
-use Filament\Actions\DeleteAction;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables\Columns\TextColumn;
+use Filament\Tables;
+use Filament\Actions;
 use Filament\Tables\Table;
 
 class RecordingsRelationManager extends RelationManager
@@ -17,12 +16,12 @@ class RecordingsRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                TextColumn::make('recorded_at')
+                Tables\Columns\TextColumn::make('recorded_at')
                     ->label('Recorded At')
                     ->dateTime('H:i:s · M j, Y', timezone: 'Asia/Manila')
                     ->sortable(),
 
-                TextColumn::make('speaker')
+                Tables\Columns\TextColumn::make('speaker')
                     ->badge()
                     ->color(fn (string $state) => match ($state) {
                         'Host'  => 'warning',
@@ -30,28 +29,27 @@ class RecordingsRelationManager extends RelationManager
                         default => 'gray',
                     }),
 
-                TextColumn::make('file_size_label')
+                Tables\Columns\TextColumn::make('file_size_label')
                     ->label('File Size')
                     ->getStateUsing(fn ($record) => $record->file_size_label),
 
-                // Clickable play/download link
-                TextColumn::make('file_url')
+                Tables\Columns\TextColumn::make('file_path')
                     ->label('Audio')
-                    ->getStateUsing(fn ($record) => '▶ Play / Download')
-                    ->url(fn ($record) => $record->file_url)
-                    ->openUrlInNewTab()
-                    ->color('info'),
+                    ->html()
+                    ->formatStateUsing(function ($record) {
+                        return '<audio controls src="' . $record->file_url . '" style="height: 40px; max-width: 250px;"></audio>';
+                    }),
+
             ])
             ->defaultSort('recorded_at', 'asc')
             ->recordActions([
-                Action::make('play')
-                    ->label('Play')
-                    ->icon('heroicon-o-play')
-                    ->url(fn ($record) => $record->file_url)
-                    ->openUrlInNewTab(),
-                DeleteAction::make()
+                Actions\DeleteAction::make()
                     ->label('Delete'),
             ])
-            ->bulkActions([]);
+            ->toolbarActions([
+                Actions\BulkActionGroup::make([
+                    Actions\DeleteBulkAction::make(),
+                ]),
+            ]);
     }
 }

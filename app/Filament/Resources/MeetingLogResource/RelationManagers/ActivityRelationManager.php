@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\MeetingLogResource\RelationManagers;
 
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables\Columns\TextColumn;
+use Filament\Tables;
 use Filament\Tables\Table;
 
 class ActivityRelationManager extends RelationManager
@@ -15,12 +15,12 @@ class ActivityRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                TextColumn::make('created_at')
-                    ->label('Time')
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Timestamp')
                     ->dateTime('H:i:s · M j, Y', timezone: 'Asia/Manila')
                     ->sortable(),
 
-                TextColumn::make('action')
+                Tables\Columns\TextColumn::make('action')
                     ->badge()
                     ->color(fn (string $state) => match (true) {
                         str_contains($state, 'error')   => 'danger',
@@ -32,7 +32,7 @@ class ActivityRelationManager extends RelationManager
                     })
                     ->searchable(),
 
-                TextColumn::make('metadata')
+                Tables\Columns\TextColumn::make('metadata')
                     ->label('Details')
                     ->formatStateUsing(function ($state) {
                         if (! $state) return '—';
@@ -48,6 +48,6 @@ class ActivityRelationManager extends RelationManager
             ])
             ->defaultSort('created_at', 'asc')
             ->recordActions([])
-            ->bulkActions([]);
+            ->toolbarActions([]);
     }
 }
