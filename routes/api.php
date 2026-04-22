@@ -10,8 +10,9 @@ Route::prefix('meetings')->group(function () {
     Route::post('{code}/peer', [MeetingController::class, 'savePeerId']);
     Route::get('{code}/peer', [MeetingController::class, 'getPeerId']);
     Route::patch('{code}/end', [MeetingController::class, 'end']);
-    Route::post('{code}/chat',      [MeetingController::class, 'storeChat']);
-    Route::post('{code}/recording', [MeetingController::class, 'storeRecording']);
 });
 
 Route::post('logs', [LogController::class, 'store']);
+
+Route::post('/meetings/{code}/chats', [MeetingController::class, 'storeChat']);
+Route::post('/meetings/{code}/recordings', [MeetingController::class, 'storeRecording']);

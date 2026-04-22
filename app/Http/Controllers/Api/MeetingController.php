@@ -80,44 +80,40 @@ class MeetingController extends Controller
 
     public function storeChat(Request $request, $code)
     {
-        // Hanapin ang meeting base sa code
-        $meeting = Meeting::where('meeting_code', $code)->firstOrFail();
+        try {
+            $chat = new MeetingChat();
+            $chat->meeting_code = $code;
+            $chat->sender = $request->input('sender');
+            $chat->message = $request->input('message');
+            $chat->save(); // Ang 'sent_at' ay automatic na nilalagay ng Model mo
 
-        // I-save ang chat
-        $chat = new MeetingChat();
-        $chat->meeting_id = $meeting->id;
-        $chat->sender = $request->input('sender');
-        $chat->message = $request->input('message');
-        // Siguraduhing sinasalo mo ang 'time' galing sa Vue!
-        $chat->time = $request->input('time'); 
-        $chat->save();
-
-        return response()->json(['status' => 'success']);
+            return response()->json(['status' => 'success']);
+        } catch (\Exception $e) {
+            // Ibabato natin ang error pabalik sa Vue para makita natin
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     public function storeRecording(Request $request, $code)
     {
-        $meeting = Meeting::where('meeting_code', $code)->firstOrFail();
+        try {
+            if ($request->hasFile('audio')) {
+                $file = $request->file('audio');
+                $path = $file->store('recordings', 'public');
+                
+                $recording = new MeetingRecording();
+                $recording->meeting_code = $code;
+                $recording->speaker = $request->input('speaker', 'Unknown');
+                $recording->file_size = $file->getSize();
+                $recording->file_path = $path; 
+                $recording->save();
 
-        // I-check kung may ipinasang file na ang pangalan ay 'audio'
-        if ($request->hasFile('audio')) {
-            $file = $request->file('audio');
-            // I-save ang file sa storage/app/public/recordings
-            $path = $file->store('recordings', 'public');
-            $size = $file->getSize();
-
-            // I-save sa database (table: meeting_recordings)
-            $recording = new MeetingRecording();
-            $recording->meeting_id = $meeting->id;
-            $recording->speaker = $request->input('speaker', 'Unknown');
-            $recording->file_size = $size;
-            $recording->audio = $path; // Ito yung column na nakikita mo sa Filament
-            $recording->save();
-
-            return response()->json(['status' => 'success', 'path' => $path]);
+                return response()->json(['status' => 'success', 'path' => $path]);
+            }
+            return response()->json(['error' => 'No audio file provided'], 400);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        return response()->json(['error' => 'No audio file provided'], 400);
     }
 
     private function generateUniqueCode(): string

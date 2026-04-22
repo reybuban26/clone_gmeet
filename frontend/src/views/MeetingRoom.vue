@@ -639,7 +639,9 @@ async function uploadRecording(blob) {
     });
     console.log("Audio Recording uploaded successfully");
   } catch (err) {
-    console.error("Failed to upload recording", err);
+    // KUNG MAY ERROR SA UPLOAD, MAG-A-ALERT DIN SA SCREEN MO
+    const backendError = err.response?.data?.error || err.response?.data?.message || err.message;
+    alert("RECORDING UPLOAD ERROR: " + backendError);
   }
 }
 
@@ -838,12 +840,19 @@ function sendMessage() {
   messages.value.push({ id: Date.now(), sender: 'You', text, time, isOwn: true })
   
   const code = route.params.code;
+  
+  // IPAPASA SA LARAVEL + ERROR ALERT
   axios.post(`${API_URL}/api/meetings/${code}/chats`, {
     meeting_code: code,
     sender: isHost.value ? 'Host' : 'Guest',
-    message: text,
-    time: time
-  }).catch(err => console.error("Chat sync failed", err.response?.data || err));
+    message: text
+  }).then(res => {
+    console.log("Chat saved to DB!");
+  }).catch(err => {
+    // KUNG MAY ERROR SA BACKEND, MAG-A-ALERT SA SCREEN MO!
+    const backendError = err.response?.data?.error || err.response?.data?.message || err.message;
+    alert("CHAT SYNC ERROR: " + backendError);
+  });
 
   if (dataConn.value?.open) {
     dataConn.value.send({ type: 'chat', sender: isHost.value ? 'Host' : 'Guest', text, time })
