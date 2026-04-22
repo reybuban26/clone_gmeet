@@ -819,14 +819,18 @@ function sendMessage() {
   if (!text) return
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   
+  // Update UI immediately
   messages.value.push({ id: Date.now(), sender: 'You', text, time, isOwn: true })
   
+  // SEND TO BACKEND: Sync chat to database
   const code = route.params.code;
   axios.post(`${API_URL}/api/meetings/${code}/chats`, {
     sender: isHost.value ? 'Host' : 'Guest',
-    message: text
+    message: text,
+    time: time // <-- DAGDAG: Isinama na natin yung time para tanggapin ng Laravel mo!
   }).catch(err => console.error("Chat sync failed", err));
 
+  // Send to peer
   if (dataConn.value?.open) {
     dataConn.value.send({ type: 'chat', sender: isHost.value ? 'Host' : 'Guest', text, time })
   }
