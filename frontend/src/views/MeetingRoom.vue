@@ -319,11 +319,14 @@ let callTimer          = null
 let pipWindow          = null 
 let pipInitialized     = false 
 
-// --- RECORDING STATE ---
+// --- AUDIO MIXING & RECORDING STATE ---
 const isRecording = ref(false)
+const isUploading = ref(false) 
 let mediaRecorder = null
 let recordedChunks = []
-let resolveUploadPromise = null // Ginagamit ito para hintayin ang upload bago mag-leave call
+let resolveUploadPromise = null
+let audioContext = null;
+let audioDestination = null;
 
 const localClass = computed(() => {
   if (remoteConnected.value && !screenSharing.value) return 'local-pip'
@@ -564,24 +567,37 @@ watch([micOn, cameraOn, screenSharing, remoteConnected, handRaised, remoteHandRa
   updatePiPUI();
 });
 
-// --- RECORDING INITIALIZATION ---
+// --- AUDIO MIXING & RECORDING INITIALIZATION ---
+function initAudioMixing() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    audioDestination = audioContext.createMediaStreamDestination();
+  }
+  // Isama ang boses mo (local stream)
+  if (localStream && localStream.getAudioTracks().length > 0) {
+    const localSource = audioContext.createMediaStreamSource(localStream);
+    localSource.connect(audioDestination);
+  }
+}
+
+// Funtion para isama ang boses ng guest
+function addRemoteStreamToMix(stream) {
+  if (!audioContext || !audioDestination) return;
+  if (stream && stream.getAudioTracks().length > 0) {
+    const remoteSource = audioContext.createMediaStreamSource(stream);
+    remoteSource.connect(audioDestination);
+  }
+}
+
 async function startRecording() {
   if (!localStream) return;
   
   try {
-    const displayStream = await navigator.mediaDevices.getDisplayMedia({
-      video: { displaySurface: "browser" },
-      audio: true
-    });
+    // Gumawa ng Audio Mixer para mapagsama lahat ng boses nang WALANG popup
+    initAudioMixing();
     
-    const tracks = [
-      ...displayStream.getVideoTracks(),
-      ...localStream.getAudioTracks()
-    ];
-    
-    const combinedStream = new MediaStream(tracks);
-    
-    mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+    // I-record ang audio destination stream (walang video, purong boses lang)
+    mediaRecorder = new MediaRecorder(audioDestination.stream, { mimeType: 'audio/webm' });
     
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
@@ -590,20 +606,17 @@ async function startRecording() {
     };
     
     mediaRecorder.onstop = async () => {
-      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const blob = new Blob(recordedChunks, { type: 'audio/webm' });
       recordedChunks = []; 
-      
-      displayStream.getTracks().forEach(track => track.stop());
       
       await uploadRecording(blob);
 
-      // Kung may naghihintay na leaveCall, i-trigger natin para makalipat na
       if (resolveUploadPromise) {
         resolveUploadPromise();
       }
     };
 
-    mediaRecorder.start(); // Kunin na lang sa iisang file para iwas putol
+    mediaRecorder.start(); 
     isRecording.value = true;
     logAction('recording_started', { meeting_code: route.params.code }).catch(() => {});
     
@@ -616,8 +629,7 @@ async function uploadRecording(blob) {
   const code = route.params.code;
   const formData = new FormData();
   
-  // Pinalitan natin ng "audio" at "speaker" para pumasok sa Filament backend mo
-  formData.append('audio', blob, `screen-record-${code}-${Date.now()}.webm`);
+  formData.append('audio', blob, `audio-record-${code}-${Date.now()}.webm`);
   formData.append('speaker', isHost.value ? 'Host' : 'Guest');
   formData.append('meeting_code', code);
   
@@ -625,7 +637,7 @@ async function uploadRecording(blob) {
     await axios.post(`${API_URL}/api/meetings/${code}/recordings`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    console.log("Recording uploaded successfully");
+    console.log("Audio Recording uploaded successfully");
   } catch (err) {
     console.error("Failed to upload recording", err);
   }
@@ -664,6 +676,8 @@ onMounted(async () => {
         call.on('stream', (remote) => {
           remoteConnected.value = true
           if (remoteVideoEl.value) remoteVideoEl.value.srcObject = remote
+          // Isama ang boses ng guest sa recording
+          addRemoteStreamToMix(remote);
         })
         call.on('close', () => { remoteConnected.value = false })
       })
@@ -709,6 +723,8 @@ async function connectToHost(code, attempts = 0) {
     call.on('stream', (remote) => {
       remoteConnected.value = true
       if (remoteVideoEl.value) remoteVideoEl.value.srcObject = remote
+      // Isama ang boses ni Host sa recording natin as guest
+      addRemoteStreamToMix(remote);
     })
     call.on('close', () => { remoteConnected.value = false })
 
@@ -819,18 +835,16 @@ function sendMessage() {
   if (!text) return
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   
-  // Update UI immediately
   messages.value.push({ id: Date.now(), sender: 'You', text, time, isOwn: true })
   
-  // SEND TO BACKEND: Sync chat to database
   const code = route.params.code;
   axios.post(`${API_URL}/api/meetings/${code}/chats`, {
+    meeting_code: code,
     sender: isHost.value ? 'Host' : 'Guest',
     message: text,
-    time: time // <-- DAGDAG: Isinama na natin yung time para tanggapin ng Laravel mo!
-  }).catch(err => console.error("Chat sync failed", err));
+    time: time
+  }).catch(err => console.error("Chat sync failed", err.response?.data || err));
 
-  // Send to peer
   if (dataConn.value?.open) {
     dataConn.value.send({ type: 'chat', sender: isHost.value ? 'Host' : 'Guest', text, time })
   }
@@ -850,9 +864,9 @@ function togglePanel(name) {
 }
 
 async function leaveCall() {
-  // Hintayin munang matapos ang upload bago lumipat kung may nagre-record
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     isRecording.value = false;
+    isUploading.value = true; 
     await new Promise((resolve) => {
       resolveUploadPromise = resolve;
       mediaRecorder.stop();
@@ -892,6 +906,10 @@ function stopAllMedia() {
   if (localVideoEl.value) localVideoEl.value.srcObject = null;
   if (remoteVideoEl.value) remoteVideoEl.value.srcObject = null;
   if (screenVideoEl.value) screenVideoEl.value.srcObject = null;
+  
+  if (audioContext && audioContext.state !== 'closed') {
+    audioContext.close();
+  }
   
   if (pipWindow) {
       const pipLocal = pipWindow.document.getElementById('local-video');
@@ -952,6 +970,7 @@ watch(settingsTab, async (newVal) => {
   }
 })
 </script>
+
 <style scoped>
 /* .. Yung existing styles mo same pa rin ..*/
 .room { width: 100vw; height: 100vh; background: #202124; display: flex; flex-direction: column; position: relative; overflow: hidden; font-family: 'Google Sans', Roboto, Arial, sans-serif; color: #e8eaed; }
