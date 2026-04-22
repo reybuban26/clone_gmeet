@@ -82,8 +82,8 @@
         <p v-else class="guest-badge">Joining as guest</p>
 
         <div class="info-actions">
-          <button class="btn-join-now" @click="joinNow" :disabled="isJoining">
-            <div v-if="isJoining" class="spinner"></div>
+          <button class="btn-join-now" @click="joinNow" :disabled="isJoining || !isCameraReady">
+            <div v-if="isJoining || !isCameraReady" class="spinner"></div>
             <span v-else>Join now</span>
           </button>
           <button class="btn-cancel" @click="cancel">
@@ -110,6 +110,7 @@ const cameraOn = ref(true)
 const permissionError = ref('')
 const isHost = ref(false)
 const isJoining = ref(false) 
+const isCameraReady = ref(false)
 
 let localStream = null
 
@@ -135,6 +136,8 @@ async function requestMedia() {
       meeting_code: route.params.code,
       error: err.message,
     })
+  } finally {
+    isCameraReady.value = true 
   }
 }
 

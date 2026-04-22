@@ -9,7 +9,7 @@
       </Transition>
     </div>
 
-    <div class="content-area">
+    <div class="content-area" :class="{ 'with-emoji': showEmojiPicker, 'with-panel': activePanel }">
       <div class="video-wrap" :class="remoteClass">
         <video ref="remoteVideoEl" autoplay playsinline class="video-fill"></video>
         <div class="tile-top-right">
@@ -59,7 +59,7 @@
     <Transition name="fade"><div v-if="captionsOn && captionText" class="caption-bar">{{ captionText }}</div></Transition>
     <Transition name="pop"><div v-if="handRaised" class="hand-bottom-pill"><span>✋</span><span>You</span></div></Transition>
 
-    <Transition name="pop">
+    <Transition name="pop-center">
       <div v-if="showEmojiPicker" class="emoji-picker" @click.stop>
         <button v-for="emoji in EMOJIS" :key="emoji" class="emoji-btn" @click="sendReaction(emoji)">{{ emoji }}</button>
       </div>
@@ -88,7 +88,10 @@
             <button class="panel-close" @click="activePanel = null"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
           </div>
           <div class="messages-list" ref="messagesListEl">
-            <div v-if="!messages.length" class="no-messages"><p>No chat messages yet</p></div>
+            <div v-if="!messages.length" class="no-messages">
+              <img src="/empty-chat.png" alt="No messages" class="empty-chat-img" />
+              <p>No chat messages yet</p>
+            </div>
             <div v-for="msg in messages" :key="msg.id" class="message-item" :class="{ own: msg.isOwn }">
               <div class="msg-meta"><span class="msg-sender">{{ msg.sender }}</span><span class="msg-time">{{ msg.time }}</span></div>
               <p class="msg-text">{{ msg.text }}</p>
@@ -141,7 +144,7 @@
           <button class="ctrl-btn" :class="{ active: showMoreDropdown }" @click.stop="toggleMoreDropdown">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
           </button>
-          <Transition name="pop">
+          <Transition name="pop-center">
             <div v-if="showMoreDropdown" class="more-dropdown" @click.stop>
               <button class="dropdown-item" @click="openSettings">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -359,7 +362,7 @@ async function openDocumentPiP() {
   showMoreDropdown.value = false;
   
   try {
-    pipWindow = await window.documentPictureInPicture.requestWindow({ width: 420, height: 600 });
+    pipWindow = await window.documentPictureInPicture.requestWindow({ width: 320, height: 420 });
     pipWindow.addEventListener('pagehide', () => { pipWindow = null; pipInitialized = false; });
     renderCustomPiP();
   } catch (err) { console.error("PiP Error:", err); }
@@ -1008,13 +1011,47 @@ watch(settingsTab, async (newVal) => {
 .content-area { flex: 1; position: relative; overflow: hidden; }
 .video-wrap { position: absolute; border-radius: 12px; overflow: hidden; background: #202124; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-sizing: border-box; }
 .wrap-hidden { display: none; }
-.local-solo { top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(75vw, 960px); aspect-ratio: 16/9; z-index: 5; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
-.remote-fill { inset: 12px; border-radius: 12px; z-index: 4; }
 .local-pip { bottom: 24px; right: 24px; width: 280px; aspect-ratio: 16/9; z-index: 12; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15); }
-.screen-fill { inset: 0; border-radius: 0; z-index: 3; background: #000; }
-.screen-fill .video-fill { object-fit: contain; }
 .remote-pip { bottom: 24px; right: 24px; width: 280px; aspect-ratio: 16/9; z-index: 11; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15); }
 .local-pip-cam { bottom: 195px; right: 24px; }
+.local-solo, .remote-fill, .screen-fill {
+  position: absolute;
+  top: 70px;
+  left: 150px;
+  right: 150px;
+  bottom: 50px;
+  width: auto;
+  height: auto;
+  border-radius: 12px;
+  background: #3c4043;
+  transition: all 0.4s ease-in-out;
+}
+
+.local-solo { z-index: 5; }
+.remote-fill { z-index: 4; }
+.screen-fill { z-index: 3; background: #000; }
+.screen-fill .video-fill { object-fit: contain; }
+
+/* 2. SHRINK UP: Kapag in-open ang Emoji Picker */
+.content-area.with-emoji .local-solo,
+.content-area.with-emoji .remote-fill,
+.content-area.with-emoji .screen-fill {
+  bottom: 86px; /* Aangat yung video screen pataas */
+}
+
+/* 3. SHRINK LEFT: Kapag in-open ang Chat o People Panel */
+.content-area.with-panel .local-solo,
+.content-area.with-panel .remote-fill,
+.content-area.with-panel .screen-fill {
+  right: 392px; /* Liliit yung video pakaliwa para hindi matakpan ng chat */
+}
+
+/* BONUS: I-usog din yung maliliit na PiP sa gilid kapag may chat panel na nag-open */
+.content-area.with-panel .local-pip,
+.content-area.with-panel .remote-pip,
+.content-area.with-panel .local-pip-cam {
+  right: 408px;
+}
 .video-fill { width: 100%; height: 100%; object-fit: cover; }
 .video-fill.mirrored { transform: scaleX(-1); }
 .video-fill.vid-hidden { opacity: 0; }
@@ -1049,7 +1086,37 @@ watch(settingsTab, async (newVal) => {
 .link-row { display: flex; align-items: center; gap: 8px; background: #f1f3f4; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; }
 .link-text { flex: 1; font-size: 11px; font-family: monospace; color: #202124; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .btn-copy { background: none; border: none; cursor: pointer; display: flex; padding: 2px; }
-.side-panel { position: absolute; top: 0; right: 0; width: 360px; height: 100%; background: #202124; z-index: 25; display: flex; flex-direction: column; box-shadow: -4px 0 16px rgba(0,0,0,.4); border-left: 1px solid #3c4043; }
+/* BAGONG FLOATING PANEL (Google Meet Style) */
+.side-panel { 
+  position: absolute; 
+  top: 70px; /* Binago: Pantay na ngayon sa taas ng video! */
+  right: 16px; 
+  bottom: 86px; 
+  width: 360px; 
+  background: #202124; 
+  z-index: 25; 
+  display: flex; 
+  flex-direction: column; 
+  border-radius: 12px; 
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3); 
+  overflow: hidden;   
+}
+
+/* SMOOTH TRANSITION */
+.slide-panel-enter-active, .slide-panel-leave-active { 
+  transition: all 0.4s ease-in-out;
+}
+.slide-panel-enter-from, .slide-panel-leave-to { 
+  transform: translateX(400px); /* Galing sa kanan tapos papasok */
+}
+
+/* EMPTY STATE IMAGE STYLING */
+.empty-chat-img {
+  width: 140px; /* Sakto lang na laki */
+  height: auto;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
 .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #3c4043; flex-shrink: 0; }
 .panel-header h3 { color: #e8eaed; font-size: 16px; font-weight: 500; margin: 0; }
 .panel-close { background: none; border: none; color: #9aa0a6; cursor: pointer; padding: 4px; border-radius: 50%; display: flex; transition: background .2s; }
@@ -1095,12 +1162,12 @@ watch(settingsTab, async (newVal) => {
 .util-badge { position: absolute; top: 0; right: 0; background: #ea4335; color: #fff; font-size: 9px; font-weight: 700; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 
 /* Transitions */
-.slide-panel-enter-active, .slide-panel-leave-active { transition: transform .25s ease; }
-.slide-panel-enter-from, .slide-panel-leave-to { transform: translateX(100%); }
 .slide-up-enter-active, .slide-up-leave-active { transition: all .3s ease; }
 .slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(20px); }
 .pop-enter-active, .pop-leave-active { transition: all .15s ease; }
 .pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(.88); }
+.pop-center-enter-active, .pop-center-leave-active { transition: all .15s ease; }
+.pop-center-enter-from, .pop-center-leave-to { opacity: 0; transform: translateX(-50%) scale(.88); }
 
 /* Settings Modal UI */
 .settings-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
