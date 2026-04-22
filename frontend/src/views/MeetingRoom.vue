@@ -305,7 +305,6 @@ const messages     = ref([])
 const messageInput = ref('')
 const unreadCount  = ref(0)
 
-// Settings State
 const showSettings = ref(false)
 const settingsTab = ref('audio')
 const microphones = ref([])
@@ -324,6 +323,7 @@ let pipInitialized     = false
 const isRecording = ref(false)
 let mediaRecorder = null
 let recordedChunks = []
+let resolveUploadPromise = null // Ginagamit ito para hintayin ang upload bago mag-leave call
 
 const localClass = computed(() => {
   if (remoteConnected.value && !screenSharing.value) return 'local-pip'
@@ -569,13 +569,11 @@ async function startRecording() {
   if (!localStream) return;
   
   try {
-    // Tries to request screen capturing for recording. It defaults to current window if supported.
     const displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: { displaySurface: "browser" },
       audio: true
     });
     
-    // Combine display stream with local microphone
     const tracks = [
       ...displayStream.getVideoTracks(),
       ...localStream.getAudioTracks()
@@ -583,7 +581,6 @@ async function startRecording() {
     
     const combinedStream = new MediaStream(tracks);
     
-    // Set up the MediaRecorder
     mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
     
     mediaRecorder.ondataavailable = (event) => {
@@ -594,38 +591,39 @@ async function startRecording() {
     
     mediaRecorder.onstop = async () => {
       const blob = new Blob(recordedChunks, { type: 'video/webm' });
-      recordedChunks = []; // reset
+      recordedChunks = []; 
       
-      // Stop the tracks that we requested just for recording
       displayStream.getTracks().forEach(track => track.stop());
       
-      // Upload recording to backend
       await uploadRecording(blob);
+
+      // Kung may naghihintay na leaveCall, i-trigger natin para makalipat na
+      if (resolveUploadPromise) {
+        resolveUploadPromise();
+      }
     };
 
-    mediaRecorder.start(1000); // Collect data every 1 second
+    mediaRecorder.start(); // Kunin na lang sa iisang file para iwas putol
     isRecording.value = true;
     logAction('recording_started', { meeting_code: route.params.code }).catch(() => {});
     
   } catch (error) {
     console.error("Recording failed to start:", error);
-    // User might have cancelled screen selection
   }
 }
 
 async function uploadRecording(blob) {
   const code = route.params.code;
   const formData = new FormData();
-  // Name the file based on the meeting code and timestamp
-  formData.append('recording', blob, `meeting-${code}-${Date.now()}.webm`);
+  
+  // Pinalitan natin ng "audio" at "speaker" para pumasok sa Filament backend mo
+  formData.append('audio', blob, `screen-record-${code}-${Date.now()}.webm`);
+  formData.append('speaker', isHost.value ? 'Host' : 'Guest');
   formData.append('meeting_code', code);
   
   try {
-    // Assuming this is your API endpoint based on filament relation manager logic
     await axios.post(`${API_URL}/api/meetings/${code}/recordings`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+      headers: { 'Content-Type': 'multipart/form-data' }
     });
     console.log("Recording uploaded successfully");
   } catch (err) {
@@ -675,7 +673,6 @@ onMounted(async () => {
         conn.on('data', handleIncomingData)
       })
       
-      // AUTOMATIC START RECORDING IF HOST
       startRecording();
       
     } else {
@@ -824,7 +821,6 @@ function sendMessage() {
   
   messages.value.push({ id: Date.now(), sender: 'You', text, time, isOwn: true })
   
-  // SEND TO BACKEND: Sync chat to database
   const code = route.params.code;
   axios.post(`${API_URL}/api/meetings/${code}/chats`, {
     sender: isHost.value ? 'Host' : 'Guest',
@@ -849,11 +845,14 @@ function togglePanel(name) {
   if (name === 'chat') unreadCount.value = 0
 }
 
-function leaveCall() {
-  // Stop recording before navigating away so the final chunk can be uploaded
+async function leaveCall() {
+  // Hintayin munang matapos ang upload bago lumipat kung may nagre-record
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
     isRecording.value = false;
+    await new Promise((resolve) => {
+      resolveUploadPromise = resolve;
+      mediaRecorder.stop();
+    });
   }
 
   stopAllMedia()
@@ -917,7 +916,6 @@ async function copyLink() {
   setTimeout(() => (copied.value = false), 2000)
 }
 
-// LOGIC PARA SA SETTINGS MODAL
 async function openSettings() {
   showMoreDropdown.value = false;
   showSettings.value = true;
