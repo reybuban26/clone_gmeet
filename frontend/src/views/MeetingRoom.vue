@@ -1123,12 +1123,64 @@ watch(settingsTab, async (newVal) => {
 .panel-close:hover { background: #3c4043; }
 .messages-list { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; scrollbar-color: #3c4043 transparent; }
 .no-messages { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #5f6368; font-size: 14px; }
-.message-item { display: flex; flex-direction: column; gap: 3px; }
-.msg-meta { display: flex; align-items: baseline; gap: 8px; }
-.msg-sender { color: #e8eaed; font-size: 13px; font-weight: 500; }
-.msg-time { color: #5f6368; font-size: 11px; }
-.msg-text { color: #bdc1c6; font-size: 14px; margin: 0; line-height: 1.5; }
+/* Push the first message to the bottom! */
+.message-item:first-of-type { 
+  margin-top: auto; 
+}
+
+/* Base styling para sa lahat ng chat */
+.message-item { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 4px; 
+  max-width: 85%; 
+  width: fit-content;
+}
+
+/* 1. STYLING KAPAG IBANG TAO (GUEST) - Nasa Kaliwa */
+.message-item:not(.own) { 
+  align-self: flex-start; 
+  align-items: flex-start; 
+}
+.message-item:not(.own) .msg-text { 
+  background: #3c4043; 
+  color: #e8eaed; 
+  border-radius: 4px 16px 16px 16px; /* Chat bubble tail sa top-left */
+}
+
+/* 2. STYLING KAPAG IKAW (YOU) - Nasa Kanan */
+.message-item.own { 
+  align-self: flex-end; 
+  align-items: flex-end; 
+}
+.message-item.own .msg-text { 
+  background: #1a73e8; /* Blue bubble para sayo */
+  color: #ffffff; 
+  border-radius: 16px 4px 16px 16px; /* Chat bubble tail sa top-right */
+}
+
+/* CHAT BUBBLES & TEXT STYLING */
+.msg-text { 
+  padding: 8px 14px; 
+  margin: 0; 
+  font-size: 14px; 
+  line-height: 1.4; 
+}
+
+/* META INFO (Pangalan at Oras) */
+.msg-meta { 
+  display: flex; 
+  align-items: baseline; 
+  gap: 8px; 
+  font-size: 11px;
+}
+.message-item.own .msg-meta {
+  flex-direction: row-reverse; /* Para mauna yung Oras bago "You" */
+}
+.msg-sender { font-weight: 500; }
+.message-item:not(.own) .msg-sender { color: #e8eaed; }
 .message-item.own .msg-sender { color: #8ab4f8; }
+.msg-time { color: #9aa0a6; }
 .chat-input-row { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid #3c4043; flex-shrink: 0; }
 .chat-input { flex: 1; background: #3c4043; border: none; border-radius: 24px; padding: 10px 16px; color: #e8eaed; font-size: 14px; outline: none; }
 .chat-send { width: 40px; height: 40px; border-radius: 50%; border: none; background: #1a73e8; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -1166,7 +1218,7 @@ watch(settingsTab, async (newVal) => {
 .slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(20px); }
 .pop-enter-active, .pop-leave-active { transition: all .15s ease; }
 .pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(.88); }
-.pop-center-enter-active, .pop-center-leave-active { transition: all .15s ease; }
+.pop-center-enter-active, .pop-center-leave-active { transition: all 0.4s ease-in-out; }
 .pop-center-enter-from, .pop-center-leave-to { opacity: 0; transform: translateX(-50%) scale(.88); }
 
 /* Settings Modal UI */
