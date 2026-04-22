@@ -18,7 +18,7 @@ class ChatsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('sent_at')
                     ->label('Time')
-                    ->dateTime('H:i:s · M j, Y')
+                    ->dateTime('H:i:s · M j, Y', timezone: 'Asia/Manila')
                     ->sortable(),
 
                 TextColumn::make('sender')

@@ -19,7 +19,7 @@ class RecordingsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('recorded_at')
                     ->label('Recorded At')
-                    ->dateTime('H:i:s · M j, Y')
+                    ->dateTime('H:i:s · M j, Y', timezone: 'Asia/Manila')
                     ->sortable(),
 
                 TextColumn::make('speaker')

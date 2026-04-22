@@ -63,7 +63,7 @@ class MeetingLogResource extends Resource
 
                     TextEntry::make('created_at')
                         ->label('Started At')
-                        ->dateTime('M j, Y · H:i:s'),
+                        ->dateTime('M j, Y · H:i:s', timezone: 'Asia/Manila'),
                 ])
                 ->columns(2),
         ]);
@@ -104,7 +104,7 @@ class MeetingLogResource extends Resource
 
                 TextColumn::make('created_at')
                     ->label('Started At')
-                    ->dateTime('M j, Y · H:i')
+                    ->dateTime('M j, Y · H:i', timezone: 'Asia/Manila')
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
