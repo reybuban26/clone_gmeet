@@ -36,7 +36,9 @@ class MeetingRecording extends Model
     /** Full public URL to stream/download the audio */
     public function getFileUrlAttribute(): string
     {
-        return Storage::disk('public')->url($this->file_path);
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
+        $storage = Storage::disk('public');
+        return $storage->url($this->file_path);
     }
 
     /** Human-readable file size (e.g. "1.4 MB") */
