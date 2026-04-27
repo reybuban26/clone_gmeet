@@ -4,7 +4,7 @@
       <Transition name="pop">
         <div v-if="handRaised" class="hand-top-badge">
           <span>✋</span>
-          <span class="hand-badge-name">You</span>
+          <span class="hand-badge-name">{{ isHost ? 'Host (You)' : 'Guest (You)' }}</span>
         </div>
       </Transition>
     </div>
@@ -38,7 +38,14 @@
         </div>
       </div>
 
-      <div class="video-wrap" :class="localClass">
+      <div 
+        ref="pipElRef"
+        class="video-wrap" 
+        :class="localClass"
+        @touchstart="onDragStart"
+        @touchmove="onDragMove"
+        @touchend="onDragEnd"
+      >
         <video ref="localVideoEl" autoplay muted playsinline class="video-fill" :class="{ mirrored: !screenSharing, 'vid-hidden': !cameraOn && !screenSharing }"></video>
         <div v-if="!cameraOn && !screenSharing" class="tile-avatar">
           <div class="tile-avatar-circle">
@@ -59,12 +66,12 @@
 
     <TransitionGroup name="float-emoji">
       <div v-for="e in floatingEmojis" :key="e.id" class="emoji-float" :style="{ left: e.x + '%' }">
-        <span class="emoji-char">{{ e.emoji }}</span><span class="emoji-you-pill">You</span>
+        <span class="emoji-char">{{ e.emoji }}</span><span class="emoji-you-pill">{{ e.senderName }}</span>
       </div>
     </TransitionGroup>
 
     <Transition name="fade"><div v-if="captionsOn && captionText" class="caption-bar">{{ captionText }}</div></Transition>
-    <Transition name="pop"><div v-if="handRaised" class="hand-bottom-pill"><span>✋</span><span>You</span></div></Transition>
+    <Transition name="pop"><div v-if="handRaised" class="hand-bottom-pill"><span>✋</span><span>{{ isHost ? 'Host (You)' : 'Guest (You)' }}</span></div></Transition>
 
     <Transition name="pop-center">
       <div v-if="showEmojiPicker" class="emoji-picker" @click.stop>
@@ -144,8 +151,9 @@
         <button class="ctrl-btn" :class="{ active: showEmojiPicker }" @click.stop="toggleEmojiPicker" title="Send a reaction">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
         </button>
-        <button class="ctrl-btn" :class="{ active: captionsOn }" @click="toggleCaptions" title="Turn on captions">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/></svg>
+        <button v-if="isHost" class="ctrl-btn" :class="{ off: isRecording, active: isUploading }" @click="toggleRecording" :disabled="isUploading" :title="isRecording ? 'Stop recording' : 'Start recording'">
+          <svg v-if="isRecording" viewBox="0 0 24 24" width="20" height="20" fill="white"><rect x="7" y="7" width="10" height="10"/></svg>
+          <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="white"><circle cx="12" cy="12" r="8"/></svg>
         </button>
         <div class="more-btn-wrap">
           <button class="ctrl-btn" :class="{ active: showMoreDropdown }" @click.stop="toggleMoreDropdown">
@@ -264,7 +272,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, reactive, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Peer from 'peerjs'
 import axios from 'axios'
@@ -376,16 +384,33 @@ const meetingLink = computed(() => {
   return `${window.location.origin}/meeting/${route.params.code}`
 })
 
+// BAGONG logic para sa PiP sa Mobile at Desktop
 async function openDocumentPiP() {
-  if (!window.documentPictureInPicture) return;
-  if (pipWindow && !pipWindow.closed) return;
   showMoreDropdown.value = false;
-  
+
+  // 1. Desktop PIP: Kapag supported ang Documents PiP API
+  if (window.documentPictureInPicture && !document.hidden) {
+    if (pipWindow && !pipWindow.closed) return;
+    try {
+      pipWindow = await window.documentPictureInPicture.requestWindow({ width: 320, height: 420 });
+      pipWindow.addEventListener('pagehide', () => { pipWindow = null; pipInitialized = false; });
+      renderCustomPiP();
+      return; // Bails out after handling desktop pip
+    } catch (err) { console.error("Desktop PiP Error:", err); }
+  }
+
+  // 2. Mobile FALLBACK: Kapag desktop pip ay di supported, gamitin ang standard video PiP
+  const activeVideoEl = remoteConnected.value ? remoteVideoEl.value : localVideoEl.value;
+  if (!activeVideoEl || !activeVideoEl.requestPictureInPicture) return;
+
   try {
-    pipWindow = await window.documentPictureInPicture.requestWindow({ width: 320, height: 420 });
-    pipWindow.addEventListener('pagehide', () => { pipWindow = null; pipInitialized = false; });
-    renderCustomPiP();
-  } catch (err) { console.error("PiP Error:", err); }
+    if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture();
+    } else {
+      await activeVideoEl.requestPictureInPicture();
+    }
+    window.focus(); // I-angat ang browser ulet
+  } catch (err) { console.error("Mobile PiP Fallback Error:", err); }
 }
 
 async function handleVisibilityChange() {
@@ -443,7 +468,7 @@ function renderCustomPiP() {
        </div>
        
        <div id="main-hand" style="display: none; position: absolute; bottom: 42px; left: 12px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 6px; font-size: 16px; z-index: 10;">✋</div>
-       <div id="main-name" class="name-plate">Rey Buban</div>
+       <div id="main-name" class="name-plate">${isHost.value ? 'Host (You)' : 'Guest (You)'}</div>
        
        <div id="local-pip" class="local-pip-overlay">
           <video id="local-video" autoplay playsinline muted></video>
@@ -451,7 +476,7 @@ function renderCustomPiP() {
           <div id="local-mute-badge" class="top-right-badges" style="top:4px; right:4px;"><div class="badge-mute" style="width:20px; height:20px;">${SVG_MUTE_BADGE}</div></div>
           
           <div id="local-hand" style="display: none; position: absolute; bottom: 24px; left: 4px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px; z-index: 10;">✋</div>
-          <div class="name-plate">You</div>
+          <div class="name-plate">${isHost.value ? 'Host (You)' : 'Guest (You)'}</div>
        </div>
     </div>
     
@@ -561,7 +586,7 @@ function updatePiPUI() {
     mainVid.style.objectFit = 'cover';
     mainVid.style.transform = 'scaleX(1)';
     mainAvatar.style.display = 'none'; 
-    mainName.textContent = 'Guest';
+    mainName.textContent = isHost.value ? 'Guest' : 'Host';
     mainMute.style.display = 'none';
     mainHand.style.display = remoteHandRaised.value ? 'block' : 'none';
 
@@ -577,7 +602,7 @@ function updatePiPUI() {
     mainVid.style.transform = 'scaleX(-1)';
     
     localPip.style.display = 'none';
-    mainName.textContent = 'Rey Buban (You)';
+    mainName.textContent = isHost.value ? 'Host (You)' : 'Guest (You)';
     mainMute.style.display = micOn.value ? 'none' : 'flex';
     mainHand.style.display = handRaised.value ? 'block' : 'none';
     
@@ -741,9 +766,6 @@ onMounted(async () => {
         dataConn.value = conn
         conn.on('data', handleIncomingData)
       })
-      
-      startRecording();
-      
     } else {
       await connectToHost(code)
     }
@@ -797,13 +819,13 @@ function handleIncomingData(data) {
     if (activePanel.value !== 'chat') unreadCount.value++
     scrollMessages()
   } else if (data.type === 'reaction') {
-    spawnEmoji(data.emoji)
+    const sender = isHost.value ? 'Guest' : 'Host'
+    spawnEmoji(data.emoji, sender)
   } else if (data.type === 'hand') {
     remoteHandRaised.value = data.raised
   } else if (data.type === 'mic') {
     remoteMicOn.value = data.on
   } else if (data.type === 'camera') {
-    // DAGDAG ITO: I-update ang screen kapag nag-off ng camera ang guest
     remoteCameraOn.value = data.on
   }
 }
@@ -872,7 +894,24 @@ async function toggleScreenShare() {
   } catch { /* user cancelled */ }
 }
 
-function toggleCaptions() { /* Placeholder */ }
+async function toggleRecording() {
+  if (isRecording.value) {
+    // STOP RECORDING
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      isRecording.value = false;
+      isUploading.value = true; // Paikutin/Ibahin ang kulay ng button habang nag-u-upload
+      await new Promise((resolve) => {
+        resolveUploadPromise = resolve;
+        mediaRecorder.stop();
+      });
+      isUploading.value = false; // Babalik na sa circle icon kapag tapos na
+    }
+  } else {
+    // START RECORDING
+    startRecording();
+  }
+}
+
 function toggleHand() {
   handRaised.value = !handRaised.value
   if (dataConn.value?.open) dataConn.value.send({ type: 'hand', raised: handRaised.value })
@@ -880,13 +919,14 @@ function toggleHand() {
 }
 
 function toggleEmojiPicker() { showEmojiPicker.value = !showEmojiPicker.value; showMoreDropdown.value = false }
-function spawnEmoji(emoji) {
+function spawnEmoji(emoji, senderName) {
   const id = Date.now() + Math.random()
-  floatingEmojis.value.push({ id, emoji, x: 3 + Math.random() * 20 })
+  floatingEmojis.value.push({ id, emoji, senderName, x: 3 + Math.random() * 20 })
   setTimeout(() => { floatingEmojis.value = floatingEmojis.value.filter(e => e.id !== id) }, 3000)
 }
+
 function sendReaction(emoji) {
-  spawnEmoji(emoji)
+  spawnEmoji(emoji, 'You') // Kapag ikaw pumindot, "You" ang lalabas
   showEmojiPicker.value = false
   if (dataConn.value?.open) dataConn.value.send({ type: 'reaction', emoji })
 }
@@ -1042,6 +1082,111 @@ watch(settingsTab, async (newVal) => {
     }
   }
 })
+
+// =========================================
+// 📱 MOBILE PIP DRAGGABLE LOGIC
+// =========================================
+const pipElRef = ref(null);
+
+const pipPosition = reactive({
+  initialX: 0, initialY: 0,
+  currentX: 0, currentY: 0,
+  xOffset: 0, yOffset: 0,
+  active: false,
+  isMobile: false
+});
+
+function updateIsMobile() {
+  pipPosition.isMobile = window.innerWidth <= 768;
+  if (!pipPosition.isMobile) {
+    resetPipPosition();
+  }
+}
+
+function setTranslate(xPos, yPos, el) {
+  if (!el) return;
+  el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+}
+
+function constrainPosition(x, y, pipEl) {
+  if (!pipEl) return { x, y };
+
+  const pipRect = pipEl.getBoundingClientRect();
+  const sidePanelWidth = activePanel.value ? 360 : 0; 
+  const windowPadding = 16; 
+  const bottomBarHeight = 72; 
+
+  const maxX = 0; 
+  const minX = -(window.innerWidth - pipRect.width - windowPadding * 2 - sidePanelWidth);
+  const maxY = windowPadding; 
+  const minY = -(window.innerHeight - pipRect.height - bottomBarHeight - windowPadding * 3);
+
+  const constrainedX = Math.min(Math.max(x, minX), maxX);
+  const constrainedY = Math.min(Math.max(y, minY), maxY);
+
+  return { x: constrainedX, y: constrainedY };
+}
+
+function onDragStart(e) {
+  updateIsMobile();
+  if (!pipPosition.isMobile || !pipElRef.value) return;
+
+  if (e.type === "touchstart") {
+    pipPosition.initialX = e.touches[0].clientX - pipPosition.xOffset;
+    pipPosition.initialY = e.touches[0].clientY - pipPosition.yOffset;
+  } else {
+    pipPosition.initialX = e.clientX - pipPosition.xOffset;
+    pipPosition.initialY = e.clientY - pipPosition.yOffset;
+  }
+
+  if (e.target === pipElRef.value || pipElRef.value.contains(e.target)) {
+    pipPosition.active = true;
+    pipElRef.value.style.cursor = 'grabbing';
+    pipElRef.value.style.transition = 'none'; 
+  }
+}
+
+function onDragMove(e) {
+  if (!pipPosition.active || !pipElRef.value) return;
+
+  if (e.cancelable) e.preventDefault();
+
+  if (e.type === "touchmove") {
+    pipPosition.currentX = e.touches[0].clientX - pipPosition.initialX;
+    pipPosition.currentY = e.touches[0].clientY - pipPosition.initialY;
+  } else {
+    pipPosition.currentX = e.clientX - pipPosition.initialX;
+    pipPosition.currentY = e.clientY - pipPosition.initialY;
+  }
+
+  const constrained = constrainPosition(pipPosition.currentX, pipPosition.currentY, pipElRef.value);
+
+  pipPosition.xOffset = constrained.x;
+  pipPosition.yOffset = constrained.y;
+
+  setTranslate(constrained.x, constrained.y, pipElRef.value);
+}
+
+function onDragEnd() {
+  if (!pipElRef.value) return;
+  pipPosition.active = false;
+  pipPosition.initialX = pipPosition.currentX;
+  pipPosition.initialY = pipPosition.currentY;
+  pipElRef.value.style.cursor = 'grab';
+  pipElRef.value.style.transition = 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)'; 
+}
+
+function resetPipPosition() {
+  if (!pipElRef.value) return;
+  pipPosition.initialX = 0; pipPosition.initialY = 0;
+  pipPosition.currentX = 0; pipPosition.currentY = 0;
+  pipPosition.xOffset = 0; pipPosition.yOffset = 0;
+  setTranslate(0, 0, pipElRef.value);
+}
+
+onBeforeUnmount(() => {
+  if (pipPosition.active) onDragEnd();
+});
 </script>
 
 <style scoped>
@@ -1329,9 +1474,19 @@ watch(settingsTab, async (newVal) => {
 
   /* 3. Paliitin ang Picture-in-Picture (PiP) para hindi takpan ang mukha */
  .local-pip, .remote-pip {
-    width: 150px; /* Linalakihan natin para hindi sobrang liit ng mukha mo */
+    width: 130px; /* Linalakihan natin para hindi sobrang liit ng mukha mo */
+    height: 180px; /* Dagdag: Set specific height para maging vertical */
+    aspect-ratio: 9 / 16; /* Dagdag: I-force ang portrait aspect ratio */
     bottom: 120px; /* Inangat natin konti para malayo sa buttons */
     right: 16px;
+    z-index: 100; /* Siguraduhing nasa ibabaw ng video */
+    overflow: hidden; /* Siguraduhing pantay ang corners */
+    cursor: grab; /* DAGDAG ITO: Lagyan ng hand cursor para alam na nadadrag */
+  }
+
+  .local-pip .tile-avatar-circle, .remote-pip .tile-avatar-circle {
+    width: 70px;
+    height: 70px;
   }
 
   .local-pip .tile-bottom-left, .remote-pip .tile-bottom-left {
@@ -1350,8 +1505,9 @@ watch(settingsTab, async (newVal) => {
     width: 100%;
     right: 0;
     top: 0;
-    bottom: 72px; 
-    border-radius: 0; /* Tanggalin ang curve kasi full screen na siya */
+    bottom: 0; 
+    border-radius: 0; 
+    z-index: 100; 
   }
 
   /* 5. Ayusin ang Bottom Bar Controls para magkasya lahat */
