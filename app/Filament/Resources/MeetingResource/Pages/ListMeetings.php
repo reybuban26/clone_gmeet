@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\MeetingResource\Pages;
 
 use App\Filament\Resources\MeetingResource;
-use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
 class ListMeetings extends ListRecords
@@ -12,6 +11,6 @@ class ListMeetings extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()];
+        return [];
     }
 }
