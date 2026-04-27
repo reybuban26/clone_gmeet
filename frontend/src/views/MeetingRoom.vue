@@ -13,7 +13,7 @@
       <div class="video-wrap" :class="remoteClass">
         <video ref="remoteVideoEl" autoplay playsinline class="video-fill"></video>
         <div class="tile-top-right">
-          <div v-if="remoteConnected" class="tile-icon-btn mute-badge">
+          <div v-if="remoteConnected && !remoteMicOn" class="tile-icon-btn mute-badge">
              <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
           </div>
         </div>
@@ -289,6 +289,7 @@ const screenSharing = ref(false)
 const captionsOn    = ref(false)
 const handRaised    = ref(false)
 const remoteHandRaised = ref(false)
+const remoteMicOn   = ref(true)
 
 const remoteConnected = ref(false)
 const peerError       = ref('')
@@ -771,6 +772,9 @@ function handleIncomingData(data) {
     spawnEmoji(data.emoji)
   } else if (data.type === 'hand') {
     remoteHandRaised.value = data.raised
+  } else if (data.type === 'mic') {
+    // DAGDAG ITO: I-update yung badge kapag nag-mute/unmute ang guest
+    remoteMicOn.value = data.on
   }
 }
 
@@ -778,6 +782,10 @@ function toggleMic() {
   micOn.value = !micOn.value
   localStream?.getAudioTracks().forEach(t => (t.enabled = micOn.value))
   logAction(micOn.value ? 'mic_unmuted' : 'mic_muted', { meeting_code: route.params.code })
+
+  if (dataConn.value?.open) {
+    dataConn.value.send({ type: 'mic', on: micOn.value })
+  }
 }
 
 function toggleCamera() {
@@ -979,12 +987,10 @@ async function openSettings() {
     cameras.value = devices.filter(d => d.kind === 'videoinput');
 
     if (settingsTab.value === 'video') {
-      import('vue').then(({ nextTick }) => {
-        nextTick(() => {
-          if (settingsVidPreview.value && localStream) {
-            settingsVidPreview.value.srcObject = localStream;
-          }
-        });
+      nextTick(() => {
+        if (settingsVidPreview.value && localStream) {
+          settingsVidPreview.value.srcObject = localStream;
+        }
       });
     }
   } catch (err) {
@@ -1247,4 +1253,79 @@ watch(settingsTab, async (newVal) => {
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* =========================================
+   📱 MOBILE VIEW RESPONSIVENESS FIX
+   ========================================= */
+@media (max-width: 768px) {
+  /* 1. Ayusin ang Video Size (Ibalik sa full width ang screen) */
+  .local-solo, .remote-fill, .screen-fill {
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    bottom: 90px; /* Bigyan ng space yung controls sa ibaba */
+  }
+
+  /* 2. Kapag naka-open ang Chat, wag i-squish ang video sa mobile */
+  .content-area.with-panel .local-solo,
+  .content-area.with-panel .remote-fill,
+  .content-area.with-panel .screen-fill {
+    right: 16px; 
+  }
+
+  /* 3. Paliitin ang Picture-in-Picture (PiP) para hindi takpan ang mukha */
+  .local-pip, .remote-pip {
+    width: 110px;
+    bottom: 100px;
+    right: 16px;
+  }
+
+  /* 4. Gawing full-width ang Chat at People panel sa mobile */
+  .side-panel {
+    width: 100%;
+    right: 0;
+    top: 0;
+    bottom: 72px; 
+    border-radius: 0; /* Tanggalin ang curve kasi full screen na siya */
+  }
+
+  /* 5. Ayusin ang Bottom Bar Controls para magkasya lahat */
+  .bottom-bar {
+    padding: 0 8px;
+    justify-content: center;
+  }
+  
+  /* Itago muna ang oras at code sa mobile para iwas siksikan */
+  .bottom-left {
+    display: none; 
+  }
+
+  /* I-gitna nang maayos ang mic/cam buttons at medyo paliitin */
+  .controls-center {
+    position: relative;
+    left: 0;
+    transform: none;
+    width: 100%;
+    justify-content: center;
+    gap: 8px;
+  }
+  .ctrl-btn {
+    width: 42px;
+    height: 42px;
+  }
+  .ctrl-btn.end-call {
+    width: 48px;
+    height: 48px;
+  }
+
+  /* I-angat yung Chat at People buttons sa itaas ng video para hindi sumiksik sa mic/cam controls */
+  .bottom-right {
+    position: absolute;
+    right: 16px;
+    top: -70px; 
+  }
+  .util-btn {
+    background: rgba(0,0,0,0.6); /* Lagyan ng dark background para kita kahit nakapatong sa video */
+  }
+}
 </style>

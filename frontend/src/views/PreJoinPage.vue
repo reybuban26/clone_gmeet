@@ -177,6 +177,48 @@ function stopTracks() {
 </script>
 
 <style scoped>
+
+/* =========================================
+   📱 MOBILE VIEW RESPONSIVENESS FIX
+   ========================================= */
+@media (max-width: 768px) {
+  .prejoin-wrapper {
+    /* Ginagamit ang 100dvh para sakto sa mobile browsers kahit may address bar */
+    min-height: 100dvh; 
+  }
+
+  .prejoin-main {
+    padding: 20px 16px;
+    gap: 24px; /* Paliitin ang puwang sa pagitan ng video at text */
+    align-items: flex-start; /* I-angat ang content para hindi lumubog */
+  }
+
+  /* 1. Ayusin ang Video Size para hindi maging sobrang tangkad */
+  .video-container {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9; /* Sakto sa widescreen format ng camera */
+  }
+
+  /* 2. I-gitna ang mga text at buttons sa mobile */
+  .info-col {
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .info-actions {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .btn-join-now, .btn-cancel {
+    width: 100%; /* Gawing full-width ang buttons para madaling pindutin */
+    justify-content: center;
+  }
+}
+
 .prejoin-wrapper {
   min-height: 100vh;
   background: #202124;
