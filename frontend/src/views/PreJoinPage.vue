@@ -159,10 +159,13 @@ function toggleCamera() {
 
 function joinNow() {
   isJoining.value = true
-  // Inalis din natin ang 'await' at async keyword para hindi siya ma-delay!
   logAction('user_joined_room', { meeting_code: route.params.code }).catch(() => {})
   sessionStorage.setItem('micOn', String(micOn.value))
   sessionStorage.setItem('cameraOn', String(cameraOn.value))
+  
+  // DAGDAG ITO: Bigyan natin ng "Gate Pass" yung user bago pumasok
+  sessionStorage.setItem('prejoined_' + route.params.code, 'true')
+  
   router.push(`/meeting/${route.params.code}`)
 }
 
@@ -183,14 +186,13 @@ function stopTracks() {
    ========================================= */
 @media (max-width: 768px) {
   .prejoin-wrapper {
-    /* Ginagamit ang 100dvh para sakto sa mobile browsers kahit may address bar */
-    min-height: 100dvh; 
+    height: 100dvh; /* Gamitin ang exact na taas ng phone screen */
   }
-
+  
   .prejoin-main {
-    padding: 20px 16px;
-    gap: 24px; /* Paliitin ang puwang sa pagitan ng video at text */
-    align-items: flex-start; /* I-angat ang content para hindi lumubog */
+    padding: 20px 16px 40px; /* Dagdagan natin ng space sa ibaba para hindi dikit sa edge ng phone */
+    gap: 24px;
+    align-items: flex-start;
   }
 
   /* 1. Ayusin ang Video Size para hindi maging sobrang tangkad */
@@ -220,11 +222,17 @@ function stopTracks() {
 }
 
 .prejoin-wrapper {
-  min-height: 100vh;
+  position: fixed; /* I-lock sa buong screen para hindi gumalaw ang body */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%; /* Fixed height para walang lusot sa ilalim */
   background: #202124;
   display: flex;
   flex-direction: column;
   color: #fff;
+  overflow-y: auto; /* Kung kailangang mag-scroll, sa loob lang ng dark background */
+  z-index: 50; /* Siguraduhing nasa ibabaw ito ng lahat */
 }
 
 .btn-join-now {

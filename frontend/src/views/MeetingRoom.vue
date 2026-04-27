@@ -11,7 +11,14 @@
 
     <div class="content-area" :class="{ 'with-emoji': showEmojiPicker, 'with-panel': activePanel }">
       <div class="video-wrap" :class="remoteClass">
-        <video ref="remoteVideoEl" autoplay playsinline class="video-fill"></video>
+        <video ref="remoteVideoEl" autoplay playsinline class="video-fill" :class="{ 'vid-hidden': !remoteCameraOn }"></video>
+        
+        <div v-if="!remoteCameraOn" class="tile-avatar">
+          <div class="tile-avatar-circle" :style="{ backgroundColor: remoteAvatarColor }">
+            <svg viewBox="0 0 24 24" width="50%" height="50%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+          </div>
+        </div>
+
         <div class="tile-top-right">
           <div v-if="remoteConnected && !remoteMicOn" class="tile-icon-btn mute-badge">
              <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
@@ -19,7 +26,7 @@
         </div>
         <div class="tile-bottom-left">
           <div v-if="remoteHandRaised" class="hand-indicator">✋</div>
-          <div v-if="remoteConnected" class="tile-name">Guest</div>
+          <div v-if="remoteConnected" class="tile-name">{{ isHost ? 'Guest' : 'Host' }}</div>
         </div>
       </div>
 
@@ -45,7 +52,7 @@
         </div>
         <div class="tile-bottom-left">
           <div v-if="handRaised" class="hand-indicator">✋</div>
-          <div class="tile-name">Rey Buban (You)</div>
+          <div class="tile-name">{{ isHost ? 'Host (You)' : 'Guest (You)' }}</div>
         </div>
       </div>
     </div>
@@ -146,6 +153,15 @@
           </button>
           <Transition name="pop-center">
             <div v-if="showMoreDropdown" class="more-dropdown" @click.stop>
+              <button class="dropdown-item mobile-only-menu" @click="togglePanel('people'); showMoreDropdown = false">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                People
+              </button>
+              <button class="dropdown-item mobile-only-menu" @click="togglePanel('chat'); showMoreDropdown = false">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+                In-call messages
+                <span v-if="unreadCount > 0" class="util-badge-menu">{{ unreadCount }}</span>
+              </button>
               <button class="dropdown-item" @click="openSettings">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                   <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
@@ -163,6 +179,7 @@
                 </svg>
                 {{ isFullscreen ? 'Exit full screen' : 'Full screen' }}
               </button>
+              
             </div>
           </Transition>
         </div>
@@ -290,6 +307,8 @@ const captionsOn    = ref(false)
 const handRaised    = ref(false)
 const remoteHandRaised = ref(false)
 const remoteMicOn   = ref(true)
+const remoteCameraOn = ref(true) // DAGDAG ITO
+const remoteAvatarColor = ref('#0f9d58')
 
 const remoteConnected = ref(false)
 const peerError       = ref('')
@@ -663,6 +682,15 @@ async function uploadRecording(blob) {
 
 onMounted(async () => {
   const code = route.params.code
+
+  if (!sessionStorage.getItem('prejoined_' + code)) {
+    router.replace(`/meeting/${code}/prejoin`)
+    return // Pigilan ang pag-run ng codes sa ibaba
+  }
+
+  const avatarColors = ['#e53935', '#d81b60', '#8e24aa', '#3949ab', '#039be5', '#00897b', '#43a047', '#f4511e', '#ff8f00']
+  remoteAvatarColor.value = avatarColors[Math.floor(Math.random() * avatarColors.length)]
+
   isHost.value   = sessionStorage.getItem('isHost') === 'true'
   micOn.value    = sessionStorage.getItem('micOn') !== 'false'
   cameraOn.value = sessionStorage.getItem('cameraOn') !== 'false'
@@ -773,8 +801,10 @@ function handleIncomingData(data) {
   } else if (data.type === 'hand') {
     remoteHandRaised.value = data.raised
   } else if (data.type === 'mic') {
-    // DAGDAG ITO: I-update yung badge kapag nag-mute/unmute ang guest
     remoteMicOn.value = data.on
+  } else if (data.type === 'camera') {
+    // DAGDAG ITO: I-update ang screen kapag nag-off ng camera ang guest
+    remoteCameraOn.value = data.on
   }
 }
 
@@ -805,6 +835,11 @@ function toggleCamera() {
   }
   
   logAction(cameraOn.value ? 'camera_turned_on' : 'camera_turned_off', { meeting_code: route.params.code })
+
+  // DAGDAG ITO: I-broadcast ang camera status mo
+  if (dataConn.value?.open) {
+    dataConn.value.send({ type: 'camera', on: cameraOn.value })
+  }
 }
 
 async function toggleScreenShare() {
@@ -926,7 +961,8 @@ async function leaveCall() {
   clearInterval(callTimer)
 
   sessionStorage.setItem('wasHost', sessionStorage.getItem('isHost') ?? 'false')
-  ;['isHost', 'meetingCode', 'micOn', 'cameraOn'].forEach(k => sessionStorage.removeItem(k))
+  // DAGDAG ITO: Sinama natin ang 'prejoined_' sa mga buburahin
+  ;['isHost', 'meetingCode', 'micOn', 'cameraOn', 'prejoined_' + code].forEach(k => sessionStorage.removeItem(k))
 }
 
 function stopAllMedia() {
@@ -1010,7 +1046,20 @@ watch(settingsTab, async (newVal) => {
 
 <style scoped>
 /* .. Yung existing styles mo same pa rin ..*/
-.room { width: 100vw; height: 100vh; background: #202124; display: flex; flex-direction: column; position: relative; overflow: hidden; font-family: 'Google Sans', Roboto, Arial, sans-serif; color: #e8eaed; }
+.room { 
+  position: fixed; /* I-lock sa screen para bawal mag-scroll */
+  top: 0;
+  left: 0;
+  width: 100%; 
+  height: 100dvh; /* Sakto sa phone kahit may address bar */
+  background: #202124; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; 
+  font-family: 'Google Sans', Roboto, Arial, sans-serif; 
+  color: #e8eaed; 
+  z-index: 50; 
+}
 .top-bar { position: absolute; top: 12px; right: 16px; display: flex; align-items: center; gap: 10px; z-index: 20; }
 .hand-top-badge { display: flex; align-items: center; gap: 6px; background: #34a853; color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; }
 /* Tinanggal na yung .avatar-circle dito */
@@ -1257,13 +1306,18 @@ watch(settingsTab, async (newVal) => {
 /* =========================================
    📱 MOBILE VIEW RESPONSIVENESS FIX
    ========================================= */
+
+.util-badge-menu { background: #ea4335; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 10px; margin-left: auto; }
+/* Itago ang mobile menu items sa desktop */
+.mobile-only-menu { display: none; }
+
 @media (max-width: 768px) {
   /* 1. Ayusin ang Video Size (Ibalik sa full width ang screen) */
   .local-solo, .remote-fill, .screen-fill {
     top: 16px;
     left: 16px;
     right: 16px;
-    bottom: 90px; /* Bigyan ng space yung controls sa ibaba */
+    bottom: 16px; /* Bigyan ng space yung controls sa ibaba */
   }
 
   /* 2. Kapag naka-open ang Chat, wag i-squish ang video sa mobile */
@@ -1274,10 +1328,21 @@ watch(settingsTab, async (newVal) => {
   }
 
   /* 3. Paliitin ang Picture-in-Picture (PiP) para hindi takpan ang mukha */
-  .local-pip, .remote-pip {
-    width: 110px;
-    bottom: 100px;
+ .local-pip, .remote-pip {
+    width: 150px; /* Linalakihan natin para hindi sobrang liit ng mukha mo */
+    bottom: 120px; /* Inangat natin konti para malayo sa buttons */
     right: 16px;
+  }
+
+  .local-pip .tile-bottom-left, .remote-pip .tile-bottom-left {
+    bottom: 4px;
+    left: 4px;
+    gap: 4px;
+  }
+  .local-pip .tile-name, .remote-pip .tile-name {
+    font-size: 10px; /* Mas maliit na text */
+    padding: 3px 6px;
+    white-space: nowrap; /* Para hindi mag-two lines ang text */
   }
 
   /* 4. Gawing full-width ang Chat at People panel sa mobile */
@@ -1320,12 +1385,12 @@ watch(settingsTab, async (newVal) => {
 
   /* I-angat yung Chat at People buttons sa itaas ng video para hindi sumiksik sa mic/cam controls */
   .bottom-right {
-    position: absolute;
-    right: 16px;
-    top: -70px; 
+    display: none !important; 
   }
-  .util-btn {
-    background: rgba(0,0,0,0.6); /* Lagyan ng dark background para kita kahit nakapatong sa video */
+
+  /* Palitawin yung Chat at People buttons sa loob ng 3-dots menu */
+  .mobile-only-menu {
+    display: flex !important;
   }
 }
 </style>
