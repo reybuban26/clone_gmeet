@@ -1,5 +1,9 @@
 <template>
   <div class="room" @click="closeAll">
+
+  <video ref="rawVideoEl" autoplay playsinline muted style="display:none;"></video>
+    <canvas ref="blurCanvasEl" style="display:none;"></canvas>
+
     <div class="top-bar">
       <Transition name="pop">
         <div v-if="handRaised" class="hand-top-badge">
@@ -94,6 +98,17 @@
       </div>
     </Transition>
 
+    <Transition name="slide-up">
+      <div v-if="showAdmitModal && isHost" class="admit-dialog">
+        <h3 class="dialog-title">Someone wants to join</h3>
+        <p class="dialog-desc">A guest is asking to join this meeting.</p>
+        <div class="admit-actions">
+          <button class="btn-deny" @click="denyGuest">Deny entry</button>
+          <button class="btn-admit" @click="admitGuest">Admit</button>
+        </div>
+      </div>
+    </Transition>
+
     <Transition name="slide-panel">
       <div v-if="activePanel" class="side-panel" @click.stop>
         <template v-if="activePanel === 'chat'">
@@ -178,6 +193,28 @@
 
     <div v-if="peerError" class="error-banner">{{ peerError }}</div>
 
+    <Transition name="fade">
+      <div v-if="!isHost && !remoteConnected" class="waiting-overlay">
+        <div class="waiting-card">
+          <template v-if="!rejected">
+            <div class="spinner-large"></div>
+            <h2 class="waiting-title">Asking to join...</h2>
+            <p class="waiting-desc">You'll join the call when the host lets you in.</p>
+            <button class="btn-cancel-wait" @click="stopAllMedia(); router.push('/')">Cancel</button>
+          </template>
+          
+          <template v-else>
+            <div class="rejected-icon">
+               <svg viewBox="0 0 24 24" width="48" height="48" fill="#ea4335"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            </div>
+            <h2 class="waiting-title">You can't join this call</h2>
+            <p class="waiting-desc">The host has locked the meeting and is not accepting new guests.</p>
+            <button class="btn-return" @click="stopAllMedia(); router.push('/')">Return to home screen</button>
+          </template>
+        </div>
+      </div>
+    </Transition>
+
     <div class="bottom-bar">
       <div class="bottom-left">
         <span v-if="isRecording" class="recording-indicator">
@@ -198,6 +235,12 @@
         <button class="ctrl-btn" :class="{ active: screenSharing }" @click="toggleScreenShare" title="Present now">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6zm8 9l-4-4h3V8h2v3h3l-4 4z"/></svg>
         </button>
+
+        <button class="ctrl-btn" :class="{ active: isBlurOn }" @click="toggleBlur" :disabled="isBlurLoading || !cameraOn" title="Blur background">
+          <svg v-if="isBlurLoading" viewBox="0 0 24 24" width="20" height="20" class="spinner"><circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="3" stroke-dasharray="30" stroke-linecap="round"/></svg>
+          <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 16a7 7 0 110-14 7 7 0 010 14zm-1-7h2v2h-2zm0-4h2v2h-2zm-4 4h2v2H7zm0-4h2v2H7zm8 4h2v2h-2zm0-4h2v2h-2z"/></svg>
+        </button>
+
         <button class="ctrl-btn" :class="{ active: showEmojiPicker }" @click.stop="toggleEmojiPicker" title="Send a reaction">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
         </button>
@@ -330,6 +373,7 @@ import { useLogger } from '../composables/useLogger'
 // IMPORANTE: Import the fix-webm-duration library
 import fixWebmDuration from 'fix-webm-duration'
 
+const SelfieSegmentation = window.SelfieSegmentation;
 const SVG_MIC_ON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`;
 const SVG_MIC_OFF = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>`;
 const SVG_CAM_ON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>`;
@@ -354,6 +398,14 @@ const remoteVideoEl  = ref(null)
 const screenVideoEl  = ref(null)
 const messagesListEl = ref(null)
 
+const rawVideoEl     = ref(null)
+const blurCanvasEl   = ref(null)
+const isBlurOn       = ref(false)
+const isBlurLoading  = ref(false)
+let selfieSegmentation = null
+let blurRafId          = null
+let processedStream    = null
+
 const peer        = ref(null)
 const currentCall = ref(null)
 const dataConn    = ref(null)
@@ -372,6 +424,11 @@ const remoteConnected = ref(false)
 const peerError       = ref('')
 const isHost          = ref(false)
 const isLocked        = ref(false)
+const rejected        = ref(false)
+
+const showAdmitModal  = ref(false)
+const pendingCall     = ref(null)
+const pendingConn     = ref(null)
 
 const showReadyDialog  = ref(false)
 const showEmojiPicker  = ref(false)
@@ -439,18 +496,21 @@ const meetingLink = computed(() => {
 async function openDocumentPiP() {
   showMoreDropdown.value = false;
 
-  // 1. Desktop PIP: Kapag supported ang Documents PiP API
-  if (window.documentPictureInPicture && !document.hidden) {
+  // 1. DESKTOP PIP: Gamitin ang Custom PiP natin na may buttons
+  if ('documentPictureInPicture' in window && window.innerWidth > 768) {
     if (pipWindow && !pipWindow.closed) return;
     try {
       pipWindow = await window.documentPictureInPicture.requestWindow({ width: 320, height: 420 });
       pipWindow.addEventListener('pagehide', () => { pipWindow = null; pipInitialized = false; });
       renderCustomPiP();
-      return; // Bails out after handling desktop pip
-    } catch (err) { console.error("Desktop PiP Error:", err); }
+      return; // Kapag Desktop, hanggang dito lang. WAG nang bumaba.
+    } catch (err) { 
+      console.error("Desktop PiP Error:", err); 
+      return; // WAG mag-fallback sa Native Video PiP para hindi pumangit ang UI sa laptop!
+    }
   }
 
-  // 2. Mobile FALLBACK: Kapag desktop pip ay di supported, gamitin ang standard video PiP
+  // 2. MOBILE FALLBACK: Kapag nasa phone, standard native video PiP lang talaga ang pwede
   const activeVideoEl = remoteConnected.value ? remoteVideoEl.value : localVideoEl.value;
   if (!activeVideoEl || !activeVideoEl.requestPictureInPicture) return;
 
@@ -460,20 +520,25 @@ async function openDocumentPiP() {
     } else {
       await activeVideoEl.requestPictureInPicture();
     }
-    window.focus(); // I-angat ang browser ulet
   } catch (err) { console.error("Mobile PiP Fallback Error:", err); }
 }
 
 async function handleVisibilityChange() {
   if (document.hidden) {
-    if (window.documentPictureInPicture && !pipWindow) {
+    // Auto PiP kapag lumipat ng tab (Subukan lang sa Desktop)
+    if ('documentPictureInPicture' in window && window.innerWidth > 768 && !pipWindow) {
       try { await openDocumentPiP(); } catch (e) {}
     }
   } else {
+    // Kapag bumalik sa tab, isara ang custom PiP
     if (pipWindow) {
       pipWindow.close();
       pipWindow = null;
       pipInitialized = false;
+    }
+    // Isara din ang native PiP kung sakaling naiwang bukas
+    if (document.pictureInPictureElement) {
+      document.exitPictureInPicture().catch(()=>{});
     }
   }
 }
@@ -771,6 +836,11 @@ onMounted(async () => {
   micOn.value    = sessionStorage.getItem('micOn') !== 'false'
   cameraOn.value = sessionStorage.getItem('cameraOn') !== 'false'
 
+  const savedBlur = sessionStorage.getItem('blurOn') === 'true'
+  if (savedBlur) {
+    setTimeout(() => { toggleBlur(); }, 1000); // Auto-on ang blur pagkapasok
+  }
+
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ 
       video: true, 
@@ -784,6 +854,7 @@ onMounted(async () => {
     })
     originalVideoTrack = localStream.getVideoTracks()[0]
     applyTrackStates()
+    if (rawVideoEl.value) rawVideoEl.value.srcObject = localStream // I-feed sa hidden video para sa AI
     if (localVideoEl.value) localVideoEl.value.srcObject = localStream
   } catch {
     peerError.value = 'Could not access camera/microphone.'
@@ -801,24 +872,33 @@ onMounted(async () => {
       await axios.post(`${API_URL}/api/meetings/${code}/peer`, { peer_id: id })
 
       peer.value.on('call', (call) => {
+        // 1. Kung naka-lock ang kwarto, i-reject agad!
         if (isLocked.value) {
           call.close();
           return;
         }
-        currentCall.value = call
-        call.answer(localStream)
-        logAction('peerjs_call_received', { meeting_code: code })
-        call.on('stream', (remote) => {
-          remoteConnected.value = true
-          if (remoteVideoEl.value) remoteVideoEl.value.srcObject = remote
-          addRemoteStreamToMix(remote);
-        })
-        call.on('close', () => { remoteConnected.value = false })
+        // 2. Kung bukas ang kwarto, i-hold muna ang tawag at ilabas ang Admit Modal
+        pendingCall.value = call;
+        showAdmitModal.value = true;
       })
 
       peer.value.on('connection', (conn) => {
-        dataConn.value = conn
-        conn.on('data', handleIncomingData)
+        // 1. Kapag LOCKED ang kwarto, sendan agad ng signal na REJECTED siya
+        if (isLocked.value) {
+          conn.on('open', () => {
+            conn.send({ type: 'rejected' });
+            setTimeout(() => conn.close(), 500);
+          });
+          return;
+        }
+
+        // 2. I-hold din ang chat data ng guest habang naghihintay siya
+        if (showAdmitModal.value) {
+          pendingConn.value = conn;
+        } else {
+          dataConn.value = conn;
+          conn.on('data', handleIncomingData);
+        }
       })
     } else {
       await connectToHost(code)
@@ -853,11 +933,17 @@ async function connectToHost(code, attempts = 0) {
     currentCall.value = call
     call.on('stream', (remote) => {
       remoteConnected.value = true
+      rejected.value = false // DAGDAG: Na-accept na!
       if (remoteVideoEl.value) remoteVideoEl.value.srcObject = remote
       // Isama ang boses ni Host sa recording natin as guest
       addRemoteStreamToMix(remote);
     })
-    call.on('close', () => { remoteConnected.value = false })
+    call.on('close', () => { 
+      if (!remoteConnected.value) {
+        rejected.value = true;
+      }
+      remoteConnected.value = false 
+    })
 
     const conn = peer.value.connect(data.peer_id)
     dataConn.value = conn
@@ -881,11 +967,13 @@ function handleIncomingData(data) {
     remoteMicOn.value = data.on
   } else if (data.type === 'camera') {
     remoteCameraOn.value = data.on
-  }else if (data.type === 'force_mute') {
+  } else if (data.type === 'force_mute') {
     if (micOn.value) {
-      toggleMic(); // Auto patay ng mic
+      toggleMic();
       alert("The host has muted your microphone.");
     }
+  } else if (data.type === 'rejected') {
+    rejected.value = true;
   } else if (data.type === 'kick') {
     alert("You have been removed from the meeting by the host.");
     leaveCall();
@@ -914,7 +1002,7 @@ function toggleCamera() {
          ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 2, 2);
          localVideoEl.value.srcObject = canvas.captureStream();
       } else {
-         localVideoEl.value.srcObject = localStream;
+         localVideoEl.value.srcObject = isBlurOn.value && processedStream ? new MediaStream([processedStream.getVideoTracks()[0], ...localStream.getAudioTracks()]) : localStream;
       }
   }
   
@@ -975,6 +1063,90 @@ async function toggleRecording() {
 }
 
 // ==========================
+// BACKGROUND BLUR LOGIC
+// ==========================
+async function toggleBlur() {
+  if (!cameraOn.value) return; 
+  isBlurOn.value = !isBlurOn.value;
+
+  if (isBlurOn.value) {
+    isBlurLoading.value = true;
+    if (!selfieSegmentation) {
+      // Setup ng AI Model
+      selfieSegmentation = new SelfieSegmentation({locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
+      }});
+      selfieSegmentation.setOptions({ modelSelection: 1 }); // Fast mode
+      selfieSegmentation.onResults(onBlurResults);
+      await selfieSegmentation.initialize();
+    }
+
+    isBlurLoading.value = false;
+    processBlurFrame(); // Simulan ang pag-loop
+
+    // Kunin ang video mula sa invisible Canvas at ipakita sa screen natin
+    processedStream = blurCanvasEl.value.captureStream(30);
+    const processedTrack = processedStream.getVideoTracks()[0];
+
+    if (localVideoEl.value) {
+      localVideoEl.value.srcObject = new MediaStream([processedTrack, ...localStream.getAudioTracks()]);
+    }
+    replaceVideoTrackInPeer(processedTrack); // Ipadala ang blurred video sa Guest!
+
+  } else {
+    // Kapag pinatay ang Blur
+    cancelAnimationFrame(blurRafId);
+    isBlurLoading.value = false;
+    if (localVideoEl.value) {
+      localVideoEl.value.srcObject = localStream; // Balik sa normal camera
+    }
+    replaceVideoTrackInPeer(originalVideoTrack);
+  }
+}
+
+function processBlurFrame() {
+  if (!isBlurOn.value || !rawVideoEl.value) return;
+  selfieSegmentation.send({ image: rawVideoEl.value }).then(() => {
+    blurRafId = requestAnimationFrame(processBlurFrame);
+  }).catch(() => {
+    blurRafId = requestAnimationFrame(processBlurFrame);
+  });
+}
+
+function onBlurResults(results) {
+  const canvas = blurCanvasEl.value;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = results.image.width;
+  canvas.height = results.image.height;
+
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 1. I-draw muna yung mask (yung hugis ng tao)
+  ctx.drawImage(results.segmentationMask, 0, 0, canvas.width, canvas.height);
+
+  // 2. Ipatong yung orig video, pero papasok lang dun sa mask (Tanging tao lang ang lilitaw)
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+  // 3. Ipatong sa likod (destination-over) yung mismong blurred background
+  ctx.globalCompositeOperation = 'destination-over';
+  ctx.filter = 'blur(12px)'; // DITO ina-adjust yung lakas ng blur. Pwede mong gawing 8px o 15px.
+  ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+  ctx.restore();
+}
+
+function replaceVideoTrackInPeer(newTrack) {
+  if (currentCall.value?.peerConnection) {
+    const sender = currentCall.value.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+    if (sender) sender.replaceTrack(newTrack);
+  }
+}
+// ==========================
+
+// ==========================
 // HOST CONTROLS
 // ==========================
 function forceMuteGuest() {
@@ -989,6 +1161,56 @@ function kickGuest() {
     setTimeout(() => {
       currentCall.value?.close();
       remoteConnected.value = false;
+    }, 500);
+  }
+}
+// ==========================
+
+// ==========================
+// ADMIT / DENY GUEST LOGIC
+// ==========================
+function admitGuest() {
+  showAdmitModal.value = false;
+  
+  if (pendingCall.value) {
+    currentCall.value = pendingCall.value;
+    pendingCall.value.answer(localStream); // Dito pa lang natin sasagutin yung tawag
+    logAction('peerjs_call_received', { meeting_code: route.params.code });
+    
+    currentCall.value.on('stream', (remote) => {
+      remoteConnected.value = true;
+      rejected.value = false;
+      if (remoteVideoEl.value) remoteVideoEl.value.srcObject = remote;
+      addRemoteStreamToMix(remote);
+    });
+    
+    currentCall.value.on('close', () => { 
+      if (!remoteConnected.value) rejected.value = true;
+      remoteConnected.value = false; 
+    });
+    
+    pendingCall.value = null;
+  }
+  
+  if (pendingConn.value) {
+    dataConn.value = pendingConn.value;
+    dataConn.value.on('data', handleIncomingData);
+    pendingConn.value = null;
+  }
+}
+
+function denyGuest() {
+  showAdmitModal.value = false;
+  if (pendingCall.value) {
+    pendingCall.value.close(); 
+    pendingCall.value = null;
+  }
+  if (pendingConn.value) {
+    // DAGDAG ITO: Sabihan yung Guest na na-deny siya!
+    pendingConn.value.send({ type: 'rejected' });
+    setTimeout(() => {
+      pendingConn.value.close();
+      pendingConn.value = null;
     }, 500);
   }
 }
@@ -1570,6 +1792,96 @@ input:checked + .slider:before { transform: translateX(18px); }
 .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .remove-btn:hover { background: rgba(234, 67, 53, 0.15) !important; }
 
+/* ========================
+   WAITING ROOM OVERLAY
+   ======================== */
+.waiting-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(32, 33, 36, 0.7); /* Dark semi-transparent background */
+  backdrop-filter: blur(12px); /* I-blur ang camera mo sa likod */
+  z-index: 100; /* Takpan ang buong screen pati bottom bar */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.waiting-card {
+  background: #fff;
+  color: #202124;
+  padding: 40px;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+.spinner-large {
+  width: 44px;
+  height: 44px;
+  border: 4px solid rgba(26, 115, 232, 0.2);
+  border-top-color: #1a73e8;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 24px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.waiting-title {
+  font-size: 24px;
+  font-weight: 400;
+  margin: 0 0 12px;
+}
+.waiting-desc {
+  font-size: 14px;
+  color: #5f6368;
+  margin: 0;
+  line-height: 1.5;
+}
+.rejected-icon {
+  margin-bottom: 16px;
+}
+.btn-return {
+  margin-top: 24px;
+  background: #1a73e8;
+  color: #fff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-return:hover { background: #1558b0; }
+
+.btn-cancel-wait {
+  margin-top: 24px;
+  background: transparent;
+  color: #1a73e8;
+  border: 1px solid #dadce0;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-cancel-wait:hover { background: #f8f9fa; }
+
+/* ========================
+   ADMIT GUEST MODAL
+   ======================== */
+.admit-dialog { position: absolute; top: 80px; right: 16px; width: 320px; background: #fff; border-radius: 12px; padding: 20px; z-index: 100; box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+.admit-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+.btn-admit { background: #1a73e8; color: #fff; border: none; padding: 10px 20px; border-radius: 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+.btn-admit:hover { background: #1558b0; }
+.btn-deny { background: transparent; color: #1a73e8; border: none; padding: 10px 20px; border-radius: 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+.btn-deny:hover { background: #f1f3f4; }
+
 @media (max-width: 768px) {
   /* 1. Ayusin ang Video Size (Ibalik sa full width ang screen) */
   .local-solo, .remote-fill, .screen-fill {
@@ -1661,6 +1973,12 @@ input:checked + .slider:before { transform: translateX(18px); }
   /* Palitawin yung Chat at People buttons sa loob ng 3-dots menu */
   .mobile-only-menu {
     display: flex !important;
+  }
+
+  /* Tignan ang spinner para hindi mabanlag sa pag-rotate */
+  svg.spinner {
+    animation: spin 1s linear infinite;
+    transform-origin: center;
   }
 }
 </style>

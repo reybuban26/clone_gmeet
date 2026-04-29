@@ -15,6 +15,7 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
+        "@mediapipe/selfie_segmentation": "^0.1.1675465747",
         "fix-webm-duration": "^1.0.6"
     }
 }

@@ -12,6 +12,8 @@
 
     <main class="prejoin-main">
       <div class="preview-col">
+        <video ref="rawVideoEl" autoplay playsinline muted style="display:none;"></video>
+        <canvas ref="blurCanvasEl" style="display:none;"></canvas>
         <div class="video-container">
           <video
             ref="localVideoEl"
@@ -66,6 +68,17 @@
                 <line x1="2" y1="2" x2="22" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
               </svg>
             </button>
+
+            <button
+              class="ctrl-btn"
+              :class="{ active: isBlurOn }"
+              @click="toggleBlur"
+              :disabled="isBlurLoading || !cameraOn || !!permissionError"
+              title="Blur background"
+            >
+              <svg v-if="isBlurLoading" viewBox="0 0 24 24" width="20" height="20" class="spinner"><circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="3" stroke-dasharray="30" stroke-linecap="round"/></svg>
+              <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 16a7 7 0 110-14 7 7 0 010 14zm-1-7h2v2h-2zm0-4h2v2h-2zm-4 4h2v2H7zm0-4h2v2H7zm8 4h2v2h-2zm0-4h2v2h-2z"/></svg>
+            </button>
           </div>
         </div>
 
@@ -100,6 +113,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLogger } from '../composables/useLogger'
 
+const SelfieSegmentation = window.SelfieSegmentation;
 const route = useRoute()
 const router = useRouter()
 const { logAction } = useLogger()
@@ -111,6 +125,14 @@ const permissionError = ref('')
 const isHost = ref(false)
 const isJoining = ref(false) 
 const isCameraReady = ref(false)
+
+const rawVideoEl     = ref(null)
+const blurCanvasEl   = ref(null)
+const isBlurOn       = ref(false)
+const isBlurLoading  = ref(false)
+let selfieSegmentation = null
+let blurRafId          = null
+let processedStream    = null
 
 let localStream = null
 
@@ -126,9 +148,8 @@ onUnmounted(() => {
 async function requestMedia() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    if (localVideoEl.value) {
-      localVideoEl.value.srcObject = localStream
-    }
+    if (rawVideoEl.value) rawVideoEl.value.srcObject = localStream // Feed sa AI
+    if (localVideoEl.value) localVideoEl.value.srcObject = localStream
     await logAction('media_permissions_granted', { meeting_code: route.params.code })
   } catch (err) {
     permissionError.value = 'Camera/microphone access denied. Please allow permissions and refresh.'
@@ -162,10 +183,9 @@ function joinNow() {
   logAction('user_joined_room', { meeting_code: route.params.code }).catch(() => {})
   sessionStorage.setItem('micOn', String(micOn.value))
   sessionStorage.setItem('cameraOn', String(cameraOn.value))
+  sessionStorage.setItem('blurOn', String(isBlurOn.value)) // DAGDAG ITO
   
-  // DAGDAG ITO: Bigyan natin ng "Gate Pass" yung user bago pumasok
   sessionStorage.setItem('prejoined_' + route.params.code, 'true')
-  
   router.push(`/meeting/${route.params.code}`)
 }
 
@@ -177,10 +197,66 @@ function cancel() {
 function stopTracks() {
   localStream?.getTracks().forEach(t => t.stop())
 }
+
+// ==========================
+// BACKGROUND BLUR LOGIC
+// ==========================
+async function toggleBlur() {
+  if (!cameraOn.value) return; 
+  isBlurOn.value = !isBlurOn.value;
+
+  if (isBlurOn.value) {
+    isBlurLoading.value = true;
+    if (!selfieSegmentation) {
+      selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
+      selfieSegmentation.setOptions({ modelSelection: 1 }); 
+      selfieSegmentation.onResults(onBlurResults);
+      await selfieSegmentation.initialize();
+    }
+
+    isBlurLoading.value = false;
+    processBlurFrame(); 
+    processedStream = blurCanvasEl.value.captureStream(30);
+
+    if (localVideoEl.value) localVideoEl.value.srcObject = processedStream;
+
+  } else {
+    cancelAnimationFrame(blurRafId);
+    isBlurLoading.value = false;
+    if (localVideoEl.value) localVideoEl.value.srcObject = localStream; 
+  }
+}
+
+function processBlurFrame() {
+  if (!isBlurOn.value || !rawVideoEl.value) return;
+  selfieSegmentation.send({ image: rawVideoEl.value }).then(() => {
+    blurRafId = requestAnimationFrame(processBlurFrame);
+  }).catch(() => {
+    blurRafId = requestAnimationFrame(processBlurFrame);
+  });
+}
+
+function onBlurResults(results) {
+  const canvas = blurCanvasEl.value;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = results.image.width;
+  canvas.height = results.image.height;
+
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(results.segmentationMask, 0, 0, canvas.width, canvas.height);
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+  ctx.globalCompositeOperation = 'destination-over';
+  ctx.filter = 'blur(12px)'; 
+  ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+  ctx.restore();
+}
+
 </script>
 
 <style scoped>
-
 /* =========================================
    📱 MOBILE VIEW RESPONSIVENESS FIX
    ========================================= */
@@ -355,6 +431,8 @@ function stopTracks() {
 .ctrl-btn.off { background: #ea4335; border-color: transparent; }
 .ctrl-btn.off:hover:not(:disabled) { background: #c5221f; }
 .ctrl-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.ctrl-btn.active { background: #1a73e8; border-color: transparent; }
+.ctrl-btn.active:hover:not(:disabled) { background: #1558b0; }
 
 .permission-error {
   color: #f28b82; /* Mapulang pinkish red */
