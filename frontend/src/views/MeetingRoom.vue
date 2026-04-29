@@ -121,7 +121,57 @@
             <h3>People</h3>
             <button class="panel-close" @click="activePanel = null"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
           </div>
-          <p class="people-count-text">{{ remoteConnected ? 2 : 1 }} in call</p>
+          
+          <div v-if="isHost" class="host-controls">
+            <div class="host-controls-header">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="#1a73e8"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+              <span>Host controls</span>
+            </div>
+            <div class="host-control-item">
+              <div class="control-text">
+                <strong>Lock Meeting</strong>
+                <small>Prevent new guests from joining</small>
+              </div>
+              <label class="switch">
+                <input type="checkbox" v-model="isLocked">
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
+
+          <p class="people-count-text">In call ({{ remoteConnected ? 2 : 1 }})</p>
+          
+          <div class="participant-list">
+            <div class="participant-item">
+              <div class="participant-avatar">
+                 <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+              </div>
+              <div class="participant-name">You ({{ isHost ? 'Host' : 'Guest' }})</div>
+              <div class="participant-status">
+                <svg v-if="!micOn" viewBox="0 0 24 24" width="16" height="16" fill="#ea4335"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+              </div>
+            </div>
+
+            <div v-if="remoteConnected" class="participant-item">
+              <div class="participant-avatar" :style="{ backgroundColor: remoteAvatarColor }">
+                 <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+              </div>
+              <div class="participant-name">{{ isHost ? 'Guest' : 'Host' }}</div>
+              
+              <div v-if="isHost" class="host-actions">
+                <button class="action-btn" @click="forceMuteGuest" :disabled="!remoteMicOn" title="Mute participant">
+                  <svg viewBox="0 0 24 24" width="18" height="18" :fill="remoteMicOn ? '#e8eaed' : '#5f6368'"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                </button>
+                <button class="action-btn remove-btn" @click="kickGuest" title="Remove from call">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="#ea4335"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                </button>
+              </div>
+              
+              <div v-else class="participant-status">
+                <svg v-if="!remoteMicOn" viewBox="0 0 24 24" width="16" height="16" fill="#ea4335"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+              </div>
+            </div>
+          </div>
         </template>
       </div>
     </Transition>
@@ -321,6 +371,7 @@ const remoteAvatarColor = ref('#0f9d58')
 const remoteConnected = ref(false)
 const peerError       = ref('')
 const isHost          = ref(false)
+const isLocked        = ref(false)
 
 const showReadyDialog  = ref(false)
 const showEmojiPicker  = ref(false)
@@ -750,13 +801,16 @@ onMounted(async () => {
       await axios.post(`${API_URL}/api/meetings/${code}/peer`, { peer_id: id })
 
       peer.value.on('call', (call) => {
+        if (isLocked.value) {
+          call.close();
+          return;
+        }
         currentCall.value = call
         call.answer(localStream)
         logAction('peerjs_call_received', { meeting_code: code })
         call.on('stream', (remote) => {
           remoteConnected.value = true
           if (remoteVideoEl.value) remoteVideoEl.value.srcObject = remote
-          // Isama ang boses ng guest sa recording
           addRemoteStreamToMix(remote);
         })
         call.on('close', () => { remoteConnected.value = false })
@@ -827,6 +881,14 @@ function handleIncomingData(data) {
     remoteMicOn.value = data.on
   } else if (data.type === 'camera') {
     remoteCameraOn.value = data.on
+  }else if (data.type === 'force_mute') {
+    if (micOn.value) {
+      toggleMic(); // Auto patay ng mic
+      alert("The host has muted your microphone.");
+    }
+  } else if (data.type === 'kick') {
+    alert("You have been removed from the meeting by the host.");
+    leaveCall();
   }
 }
 
@@ -911,6 +973,26 @@ async function toggleRecording() {
     startRecording();
   }
 }
+
+// ==========================
+// HOST CONTROLS
+// ==========================
+function forceMuteGuest() {
+  if (dataConn.value?.open) {
+    dataConn.value.send({ type: 'force_mute' });
+  }
+}
+
+function kickGuest() {
+  if (confirm("Remove this participant from the meeting?")) {
+    if (dataConn.value?.open) dataConn.value.send({ type: 'kick' });
+    setTimeout(() => {
+      currentCall.value?.close();
+      remoteConnected.value = false;
+    }, 500);
+  }
+}
+// ==========================
 
 function toggleHand() {
   handRaised.value = !handRaised.value
@@ -1455,6 +1537,38 @@ onBeforeUnmount(() => {
 .util-badge-menu { background: #ea4335; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 10px; margin-left: auto; }
 /* Itago ang mobile menu items sa desktop */
 .mobile-only-menu { display: none; }
+
+/* ========================
+   PEOPLE PANEL & HOST UI
+   ======================== */
+.host-controls { background: rgba(26, 115, 232, 0.1); margin: 16px; border-radius: 8px; border: 1px solid rgba(26, 115, 232, 0.3); overflow: hidden; }
+.host-controls-header { background: rgba(26, 115, 232, 0.15); padding: 10px 16px; display: flex; align-items: center; gap: 8px; color: #8ab4f8; font-size: 13px; font-weight: 500; }
+.host-control-item { display: flex; align-items: center; justify-content: space-between; padding: 16px; }
+.control-text { display: flex; flex-direction: column; gap: 4px; }
+.control-text strong { color: #e8eaed; font-size: 14px; font-weight: 500; }
+.control-text small { color: #9aa0a6; font-size: 12px; }
+
+/* Toggle Switch CSS */
+.switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #5f6368; transition: .4s; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; }
+input:checked + .slider { background-color: #1a73e8; }
+input:checked + .slider:before { transform: translateX(18px); }
+.slider.round { border-radius: 34px; }
+.slider.round:before { border-radius: 50%; }
+
+.participant-list { padding: 0 16px; display: flex; flex-direction: column; gap: 4px; }
+.participant-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; transition: background 0.2s; }
+.participant-item:hover { background: rgba(255,255,255,0.05); }
+.participant-avatar { width: 36px; height: 36px; border-radius: 50%; background: #3c4043; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.participant-name { flex: 1; color: #e8eaed; font-size: 14px; font-weight: 500; }
+.participant-status { color: #9aa0a6; display: flex; }
+.host-actions { display: flex; gap: 6px; }
+.action-btn { width: 32px; height: 32px; border-radius: 50%; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+.action-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.remove-btn:hover { background: rgba(234, 67, 53, 0.15) !important; }
 
 @media (max-width: 768px) {
   /* 1. Ayusin ang Video Size (Ibalik sa full width ang screen) */
