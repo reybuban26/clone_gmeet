@@ -12,8 +12,8 @@
 
     <main class="prejoin-main">
       <div class="preview-col">
-        <video ref="rawVideoEl" autoplay playsinline muted style="display:none;"></video>
-        <canvas ref="blurCanvasEl" style="display:none;"></canvas>
+        <video ref="rawVideoEl" autoplay playsinline muted class="hidden-ai-element"></video>
+        <canvas ref="blurCanvasEl" width="640" height="480" class="hidden-ai-element"></canvas>
         <div class="video-container">
           <video
             ref="localVideoEl"
@@ -148,7 +148,10 @@ onUnmounted(() => {
 async function requestMedia() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    if (rawVideoEl.value) rawVideoEl.value.srcObject = localStream // Feed sa AI
+    if (rawVideoEl.value) {
+      rawVideoEl.value.srcObject = localStream;
+      rawVideoEl.value.play().catch(()=>{}); // Piliting mag-play!
+    }
     if (localVideoEl.value) localVideoEl.value.srcObject = localStream
     await logAction('media_permissions_granted', { meeting_code: route.params.code })
   } catch (err) {
@@ -209,7 +212,7 @@ async function toggleBlur() {
     isBlurLoading.value = true;
     if (!selfieSegmentation) {
       selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
-      selfieSegmentation.setOptions({ modelSelection: 1 }); 
+      selfieSegmentation.setOptions({ modelSelection: 0 }); 
       selfieSegmentation.onResults(onBlurResults);
       await selfieSegmentation.initialize();
     }
@@ -229,9 +232,17 @@ async function toggleBlur() {
 
 function processBlurFrame() {
   if (!isBlurOn.value || !rawVideoEl.value) return;
+  
+  // DAGDAG ITO: Siguraduhing may laman at nagpi-play ang video bago ipasa sa AI
+  if (rawVideoEl.value.readyState < 2) {
+    blurRafId = requestAnimationFrame(processBlurFrame);
+    return;
+  }
+
   selfieSegmentation.send({ image: rawVideoEl.value }).then(() => {
     blurRafId = requestAnimationFrame(processBlurFrame);
-  }).catch(() => {
+  }).catch((err) => {
+    console.error("AI Processing Error:", err);
     blurRafId = requestAnimationFrame(processBlurFrame);
   });
 }
@@ -245,18 +256,40 @@ function onBlurResults(results) {
 
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 1. MASK FEATHERING: Binabaan sa 1px para saktong tanggalin lang ang "bungi-bungi" (jagged edges) nang walang halo effect
+  ctx.filter = 'blur(1px)'; 
   ctx.drawImage(results.segmentationMask, 0, 0, canvas.width, canvas.height);
+
+  // 2. FOREGROUND: Ipatong ang original na tao (Tanging tao lang ang lilitaw)
   ctx.globalCompositeOperation = 'source-in';
+  ctx.filter = 'none'; 
   ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+  // 3. BACKGROUND: Ipatong sa likod yung blurred na paligid
   ctx.globalCompositeOperation = 'destination-over';
-  ctx.filter = 'blur(12px)'; 
+  ctx.filter = 'blur(12px)'; // 12px ang standard sweet spot ng Google Meet para sa natural depth of field
   ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
   ctx.restore();
 }
 
 </script>
 
 <style scoped>
+
+/* ========================
+   AI BLUR FIX
+   ======================== */
+.hidden-ai-element {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -100 !important;
+}
+
 /* =========================================
    📱 MOBILE VIEW RESPONSIVENESS FIX
    ========================================= */
