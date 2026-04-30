@@ -205,14 +205,17 @@
           </div>
 
           <div class="effects-scroll-area">
-            s
             <div v-if="effectsTab === 'backgrounds'" class="tab-pane">
               <div class="effects-grid">
                 <button class="effect-btn none-btn" :class="{ active: activeEffect === 'none' }" @click="setVideoEffect('none')">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="#9aa0a6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm4.59-12.42L10 14.17l-2.59-2.58L6 13l4 4 8-8z"/></svg>
                   <span class="eff-label">No effect</span>
                 </button>
-                <button class="effect-btn blur-btn" :class="{ active: activeEffect === 'blur' }" @click="setVideoEffect('blur')">
+                <button class="effect-btn blur-btn" :class="{ active: activeEffect === 'blur-light' }" @click="setVideoEffect('blur-light')">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="#9aa0a6"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 16a7 7 0 110-14 7 7 0 010 14zm-1-7h2v2h-2zm0-4h2v2h-2zm-4 4h2v2H7zm0-4h2v2H7zm8 4h2v2h-2zm0-4h2v2h-2z"/></svg>
+                  <span class="eff-label">Slightly blur</span>
+                </button>
+                <button class="effect-btn blur-btn" :class="{ active: activeEffect === 'blur' || activeEffect === 'blur-heavy' }" @click="setVideoEffect('blur-heavy')">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="#9aa0a6"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 16a7 7 0 110-14 7 7 0 010 14zm-1-7h2v2h-2zm0-4h2v2h-2zm-4 4h2v2H7zm0-4h2v2H7zm8 4h2v2h-2zm0-4h2v2h-2z"/></svg>
                   <span class="eff-label">Blur</span>
                 </button>
@@ -314,12 +317,8 @@
                 HD Web Camera
               </div>
               <div class="menu-divider"></div>
-              <button class="menu-action-btn" @click="setVideoEffect('blur')">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="#e8eaed"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 16a7 7 0 110-14 7 7 0 010 14zm-1-7h2v2h-2zm0-4h2v2h-2zm-4 4h2v2H7zm0-4h2v2H7zm8 4h2v2h-2zm0-4h2v2h-2z"/></svg>
-                Blur background
-              </button>
               <button class="menu-action-btn" @click="togglePanel('effects'); showCamOptions = false">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="#e8eaed"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm4.59-12.42L10 14.17l-2.59-2.58L6 13l4 4 8-8z"/></svg>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="#e8eaed"><path d="M5.99988 16.938V19.059L5.05851 20H2.93851L5.99988 16.938ZM22.0015 14.435V16.557L18.5595 20H17.9935L17.9939 18.443L22.0015 14.435ZM8.74988 14H15.2446C16.1628 14 16.9158 14.7071 16.9888 15.6065L16.9946 15.75V20H15.4946V15.75C15.4946 15.6317 15.4124 15.5325 15.3019 15.5066L15.2446 15.5H8.74988C8.63154 15.5 8.5324 15.5822 8.50648 15.6927L8.49988 15.75V20H6.99988V15.75C6.99988 14.8318 7.70699 14.0788 8.60636 14.0058L8.74988 14ZM8.02118 10.4158C8.08088 10.9945 8.26398 11.5367 8.54372 12.0154L1.99951 18.56V16.438L8.02118 10.4158ZM22.0015 9.932V12.055L17.9939 16.065L17.9946 15.75L17.9896 15.5825C17.9623 15.128 17.8246 14.7033 17.6029 14.3348L22.0015 9.932ZM12.0565 4L1.99951 14.06V11.939L9.93551 4H12.0565ZM22.0015 5.432V7.555L16.3346 13.2245C16.0672 13.1089 15.7779 13.0346 15.4746 13.0095L15.2446 13L14.6456 13.0005C14.9874 12.6989 15.2772 12.3398 15.4999 11.9384L22.0015 5.432ZM11.9999 7.00046C13.6567 7.00046 14.9999 8.34361 14.9999 10.0005C14.9999 11.6573 13.6567 13.0005 11.9999 13.0005C10.343 13.0005 8.99988 11.6573 8.99988 10.0005C8.99988 8.34361 10.343 7.00046 11.9999 7.00046ZM11.9999 8.50046C11.1715 8.50046 10.4999 9.17203 10.4999 10.0005C10.4999 10.8289 11.1715 11.5005 11.9999 11.5005C12.8283 11.5005 13.4999 10.8289 13.4999 10.0005C13.4999 9.17203 12.8283 8.50046 11.9999 8.50046ZM7.55851 4L1.99951 9.56V7.438L5.43751 4H7.55851ZM21.0565 4L15.9091 9.14895C15.7923 8.61022 15.5669 8.11194 15.2571 7.67816L18.9345 4H21.0565ZM16.5585 4L14.0148 6.54427C13.5362 6.26463 12.9942 6.08157 12.4157 6.02181L14.4365 4H16.5585Z" /></svg>
                 Apply visual effects
               </button>
             </div>
@@ -972,14 +971,27 @@ onMounted(async () => {
   micOn.value    = sessionStorage.getItem('micOn') !== 'false'
   cameraOn.value = sessionStorage.getItem('cameraOn') !== 'false'
 
-  const savedBlur = sessionStorage.getItem('blurOn') === 'true'
-  if (savedBlur) {
-    setTimeout(() => { toggleBlur(); }, 1000); // Auto-on ang blur pagkapasok
+  // KUNIN ANG SAVED EFFECTS MULA SA PRE-JOIN
+  const savedEffect = sessionStorage.getItem('activeEffect');
+  if (savedEffect) {
+    activeEffect.value = savedEffect;
+    // KUNG ANG NAPILI AY IMAGE BACKGROUND, I-LOAD AGAD ITO SA MEMORY!
+    if (savedEffect !== 'none' && !savedEffect.startsWith('blur')) {
+      customBgImage.src = savedEffect; 
+    }
   }
+  
+  touchUpOn.value = sessionStorage.getItem('touchUpOn') === 'true';
+  lightingOn.value = sessionStorage.getItem('lightingOn') === 'true';
+  framingOn.value = sessionStorage.getItem('framingOn') === 'true';
 
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ 
-      video: true, 
+      video: {
+        width: { ideal: 1920 }, 
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30, max: 60 }      
+      },
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
@@ -990,11 +1002,32 @@ onMounted(async () => {
     })
     originalVideoTrack = localStream.getVideoTracks()[0]
     applyTrackStates()
+    
+    // === ANTI-BLINK FIX START ===
     if (rawVideoEl.value) {
       rawVideoEl.value.srcObject = localStream;
       rawVideoEl.value.play().catch(()=>{}); // Piliting mag-play!
-    } // I-feed sa hidden video para sa AI
-    if (localVideoEl.value) localVideoEl.value.srcObject = localStream
+    } 
+
+    // Simulan agad ang Canvas! Wag nang gamitin ang localStream direkta.
+    if (!processedStream && blurCanvasEl.value) {
+      processedStream = blurCanvasEl.value.captureStream(30);
+    }
+    const processedTrack = processedStream.getVideoTracks()[0];
+    const finalStream = new MediaStream([processedTrack, ...localStream.getAudioTracks()]);
+    
+    if (localVideoEl.value) {
+      localVideoEl.value.srcObject = finalStream;
+    }
+    
+    // Kung may napiling effect, AI ang magha-handle. Kung wala, normal loop lang.
+    if (activeEffect.value !== 'none' || touchUpOn.value || lightingOn.value || framingOn.value) {
+      updateEffects(); 
+    } else {
+      processSimpleFrame(); 
+    } // Paikutin agad ang Canvas kahit walang effect
+    // === ANTI-BLINK FIX END ===
+
   } catch {
     peerError.value = 'Could not access camera/microphone.'
     return
@@ -1002,6 +1035,14 @@ onMounted(async () => {
 
   startCallTimer()
   peer.value = new Peer()
+
+  if (sessionStorage.getItem('autoPresent') === 'true') {
+    sessionStorage.removeItem('autoPresent');
+    
+    setTimeout(() => {
+      toggleScreenShare();
+    }, 1000); 
+  }
 
   peer.value.on('open', async (id) => {
     await logAction('peerjs_connected', { meeting_code: code, peer_id: id })
@@ -1249,10 +1290,10 @@ async function toggleBlur() {
 async function setVideoEffect(effectType) {
   if (!cameraOn.value) return;
   activeEffect.value = effectType;
-  if (effectType !== 'none' && effectType !== 'blur') {
+  if (effectType !== 'none' && effectType !== 'blur-light' && effectType !== 'blur-heavy') {
     customBgImage.src = effectType;
   }
-  await updateEffects(); // Tawagin ang bagong master function
+  await updateEffects();
 }
 
 async function updateEffects() {
@@ -1261,80 +1302,27 @@ async function updateEffects() {
   const hasBgEffect = activeEffect.value !== 'none';
   const hasAppearance = touchUpOn.value || lightingOn.value || framingOn.value;
 
-  // 1. Kung walang background AT walang appearance, ibalik sa raw camera
-  if (!hasBgEffect && !hasAppearance) {
-    cancelAnimationFrame(blurRafId);
-    isAiLoading.value = false;
-    
-    // I-check kung hindi pa raw stream ang gamit para iwas blink pabalik
-    if (localVideoEl.value && localVideoEl.value.srcObject !== localStream) {
-      localVideoEl.value.srcObject = localStream;
-      if (effectsPreviewEl.value) effectsPreviewEl.value.srcObject = localStream;
-      replaceVideoTrackInPeer(originalVideoTrack);
-    }
-    return;
-  }
+  cancelAnimationFrame(blurRafId); 
 
-  // 2. Setup Canvas Stream para ipadala sa screen at sa kabilang peer
-  if (!processedStream && blurCanvasEl.value) {
-    processedStream = blurCanvasEl.value.captureStream(30);
-  }
-  
-  const processedTrack = processedStream.getVideoTracks()[0];
-
-  // ==========================================
-  // ANTI-BLINK FIX: 
-  // I-check kung yung Canvas Stream na ba ang kasalukuyang nagpi-play.
-  // Kung Canvas na ang nagpi-play, WAG na nating i-reset ang video srcObject.
-  // ==========================================
-  let isAlreadyUsingCanvas = false;
-  if (localVideoEl.value && localVideoEl.value.srcObject) {
-    const currentVideoTrack = localVideoEl.value.srcObject.getVideoTracks()[0];
-    if (currentVideoTrack === processedTrack) {
-      isAlreadyUsingCanvas = true;
-    }
-  }
-
-  // Kapag galing sa "No Effect" papuntang may Effect, dito lang natin papalitan yung Stream
-  if (!isAlreadyUsingCanvas) {
-    // TRICK: I-drawing agad ang raw camera sa canvas bago i-switch para hindi black screen ang unang frame
-    if (rawVideoEl.value && blurCanvasEl.value) {
-      const ctx = blurCanvasEl.value.getContext('2d');
-      blurCanvasEl.value.width = rawVideoEl.value.videoWidth || 640;
-      blurCanvasEl.value.height = rawVideoEl.value.videoHeight || 480;
-      ctx.drawImage(rawVideoEl.value, 0, 0, blurCanvasEl.value.width, blurCanvasEl.value.height);
-    }
-
-    const finalStream = new MediaStream([processedTrack, ...localStream.getAudioTracks()]);
-    if (localVideoEl.value) localVideoEl.value.srcObject = finalStream;
-    if (effectsPreviewEl.value) effectsPreviewEl.value.srcObject = finalStream;
-    replaceVideoTrackInPeer(processedTrack);
-  }
-
-  cancelAnimationFrame(blurRafId); // I-stop ang lumang loop para hindi mag-patong
-
-  // 3. Piliin kung anong Loop ang gagamitin
-  if (hasBgEffect) {
-    // KUNG MAY BACKGROUND: Gamitin ang AI Loop
+  if (hasBgEffect && !selfieSegmentation) {
     isAiLoading.value = true;
-    if (!selfieSegmentation) {
-      selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
-      selfieSegmentation.setOptions({ modelSelection: 0 }); 
-      selfieSegmentation.onResults(onBlurResults);
-      await selfieSegmentation.initialize();
-    }
+    selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
+    selfieSegmentation.setOptions({ modelSelection: 0 }); 
+    selfieSegmentation.onResults(onBlurResults);
+    await selfieSegmentation.initialize(); 
     isAiLoading.value = false;
+  }
+
+  if (hasBgEffect) {
     processBlurFrame(); 
   } else {
-    // KUNG APPEARANCE LANG: Gamitin ang mabilis at simpleng Loop (Walang AI)
     processSimpleFrame();
   }
 }
 
 // BAGONG FUNCTION: Simple Loop para sa Lighting at Touchup (Walang AI Background)
 function processSimpleFrame() {
-  // Isinama natin ang framingOn sa condition para gumana siya kahit walang blur
-  if (!cameraOn.value || (!touchUpOn.value && !lightingOn.value && !framingOn.value) || activeEffect.value !== 'none') return;
+  if (!cameraOn.value || activeEffect.value !== 'none') return;
   
   if (rawVideoEl.value && rawVideoEl.value.readyState >= 2) {
     const canvas = blurCanvasEl.value;
@@ -1345,11 +1333,10 @@ function processSimpleFrame() {
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // === FRAMING LOGIC ===
     if (framingOn.value) {
-      ctx.translate(canvas.width / 2, canvas.height / 2); // Pumunta sa gitna
-      ctx.scale(1.2, 1.2); // Mag-zoom ng 20%
-      ctx.translate(-canvas.width / 2, -canvas.height / 2); // Ibalik ang drawing point
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(1.2, 1.2);
+      ctx.translate(-canvas.width / 2, -canvas.height / 2);
     }
 
     let filters = [];
@@ -1386,6 +1373,8 @@ function onBlurResults(results) {
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // TANGGAL NA ANG ctx.scale(-1, 1) DITO TULAD SA PREJOIN
+
   if (framingOn.value) {
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.scale(1.2, 1.2); 
@@ -1408,7 +1397,7 @@ function onBlurResults(results) {
   if (activeEffect.value === 'blur-light') {
     ctx.filter = 'blur(8px)'; 
     ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-  } else if (activeEffect.value === 'blur-heavy' || activeEffect.value === 'blur') { // Suportado parehas na files
+  } else if (activeEffect.value === 'blur-heavy' || activeEffect.value === 'blur') { 
     ctx.filter = 'blur(24px)'; 
     ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
   } else if (customBgImage.complete && customBgImage.src) {
@@ -1567,11 +1556,9 @@ function togglePanel(name) {
   // DAGDAG ITO: Buhayin ang Mini-Preview kapag binuksan ang Effects Panel
   if (name === 'effects') {
     setTimeout(() => {
-      if (effectsPreviewEl.value) {
-        // I-check kung may active na blur/picture o kung normal camera lang
-        effectsPreviewEl.value.srcObject = (activeEffect.value !== 'none' && processedStream) 
-          ? new MediaStream([processedStream.getVideoTracks()[0], ...localStream.getAudioTracks()]) 
-          : localStream;
+      if (effectsPreviewEl.value && processedStream) {
+        // LAGING ikabit sa Canvas Stream para auto-sync sa main video!
+        effectsPreviewEl.value.srcObject = new MediaStream([processedStream.getVideoTracks()[0], ...localStream.getAudioTracks()]);
       }
     }, 100);
   }

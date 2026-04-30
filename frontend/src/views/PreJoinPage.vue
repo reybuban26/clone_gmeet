@@ -61,7 +61,11 @@
             </div>
           </div>
 
-          <div v-if="isAiLoading" class="video-loading">
+          <div v-if="isCamStarting" class="video-loading">
+             <div class="spinner"></div>
+             <span>Camera is starting...</span>
+          </div>
+          <div v-else-if="isAiLoading" class="video-loading">
              <div class="spinner"></div>
              <span>Applying effect...</span>
           </div>
@@ -96,7 +100,10 @@
           
           <div class="join-actions-wrapper">
             <div class="join-actions">
-              <button class="btn-join" @click="joinMeeting">Join now</button>
+              <button class="btn-join" :class="{'joining': isJoining}" @click="joinMeeting" :disabled="isJoining">
+                <template v-if="!isJoining">Join now</template>
+                <template v-else><div class="spinner-mini"></div> Joining...</template>
+              </button>
               <button class="btn-present" @click="presentMeeting">Present</button>
             </div>
             <button class="btn-cancel" @click="goBack">Cancel</button>
@@ -194,6 +201,9 @@ const showTopMenu = ref(false)
 const showOtherOptions = ref(false)
 const showEffectsPanel = ref(false)
 
+const isJoining = ref(false)
+const isCamStarting = ref(true)
+
 // Elements
 const rawVideoEl = ref(null)
 const blurCanvasEl = ref(null)
@@ -206,6 +216,8 @@ const touchUpOn = ref(false)
 const lightingOn = ref(false)
 const framingOn = ref(false)
 const isAiLoading = ref(false)
+
+const isHost = ref(false)
 
 let localStream = null
 let processedStream = null
@@ -253,18 +265,44 @@ function presentMeeting() {
 }
 
 onMounted(async () => {
+  isHost.value = sessionStorage.getItem('isHost') === 'true'
+  micOn.value = sessionStorage.getItem('micOn') !== 'false'
+  cameraOn.value = sessionStorage.getItem('cameraOn') !== 'false'
+
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    localStream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        width: { ideal: 1920 }, 
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30, max: 60 }     
+      },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+    })
+    
+    isCamStarting.value = false; // <-- TANGGALIN ANG LOADING PAGKATAPOS MAG-ALLOW
+
     if (rawVideoEl.value) {
       rawVideoEl.value.srcObject = localStream;
+      rawVideoEl.value.play().catch(()=>{}); 
+    } 
+
+    if (!processedStream && blurCanvasEl.value) {
+      processedStream = blurCanvasEl.value.captureStream(30);
     }
+    const processedTrack = processedStream.getVideoTracks()[0];
+    const finalStream = new MediaStream([processedTrack, ...localStream.getAudioTracks()]);
+    
     if (displayVideoEl.value) {
-      displayVideoEl.value.srcObject = localStream;
+      displayVideoEl.value.srcObject = finalStream;
+      displayVideoEl.value.play().catch(()=>{}); 
     }
+    processSimpleFrame(); 
+
   } catch (err) {
     console.error("No camera/mic access", err)
     cameraOn.value = false
     micOn.value = false
+    isCamStarting.value = false; // <-- TANGGALIN DIN ANG LOADING KUNG NA-DENY
   }
 })
 
@@ -295,23 +333,31 @@ function toggleCamera() {
 
 // FIX: ITO ANG PIPIGIL SA WHITE SCREEN BUG
 function joinMeeting() {
+  isJoining.value = true; 
+  
   sessionStorage.setItem('micOn', micOn.value)
   sessionStorage.setItem('cameraOn', cameraOn.value)
   sessionStorage.setItem('prejoined_' + route.params.code, 'true')
   
-  cancelAnimationFrame(blurRafId)
-  if (localStream) {
-    localStream.getTracks().forEach(t => t.stop())
-  }
-  if (processedStream) {
-    processedStream.getTracks().forEach(t => t.stop())
-  }
-  if (selfieSegmentation) {
-    selfieSegmentation.close(); // Dagdag linis memory para sure!
-  }
-
-  // TAMA NA ANG URL ROUTE DITO:
-  router.push(`/meeting/${route.params.code}`)
+  // DAGDAG ITO: I-save ang lahat ng napiling effects bago tumawid!
+  sessionStorage.setItem('activeEffect', activeEffect.value)
+  sessionStorage.setItem('touchUpOn', touchUpOn.value)
+  sessionStorage.setItem('lightingOn', lightingOn.value)
+  sessionStorage.setItem('framingOn', framingOn.value)
+  
+  setTimeout(() => {
+    cancelAnimationFrame(blurRafId)
+    if (localStream) {
+      localStream.getTracks().forEach(t => t.stop())
+    }
+    if (processedStream) {
+      processedStream.getTracks().forEach(t => t.stop())
+    }
+    if (selfieSegmentation) {
+      selfieSegmentation.close();
+    }
+    router.push(`/meeting/${route.params.code}`)
+  }, 500); 
 }
 
 function goBack() {
@@ -343,50 +389,21 @@ async function updateEffects() {
   const hasBgEffect = activeEffect.value !== 'none';
   const hasAppearance = touchUpOn.value || lightingOn.value || framingOn.value;
 
-  if (!hasBgEffect && !hasAppearance) {
-    cancelAnimationFrame(blurRafId);
-    isAiLoading.value = false;
-    if (displayVideoEl.value && displayVideoEl.value.srcObject !== localStream) {
-      displayVideoEl.value.srcObject = localStream;
-    }
-    return;
-  }
+  // 1. Itigil ang anumang umiikot na loop ngayon
+  cancelAnimationFrame(blurRafId); 
 
-  if (!processedStream && blurCanvasEl.value) {
-    processedStream = blurCanvasEl.value.captureStream(30);
-  }
-  
-  const processedTrack = processedStream.getVideoTracks()[0];
-  let isAlreadyUsingCanvas = false;
-  if (displayVideoEl.value && displayVideoEl.value.srcObject) {
-    const currentVideoTrack = displayVideoEl.value.srcObject.getVideoTracks()[0];
-    if (currentVideoTrack === processedTrack) {
-      isAlreadyUsingCanvas = true;
-    }
-  }
-
-  if (!isAlreadyUsingCanvas) {
-    if (rawVideoEl.value && blurCanvasEl.value) {
-      const ctx = blurCanvasEl.value.getContext('2d');
-      blurCanvasEl.value.width = rawVideoEl.value.videoWidth || 640;
-      blurCanvasEl.value.height = rawVideoEl.value.videoHeight || 480;
-      ctx.drawImage(rawVideoEl.value, 0, 0, blurCanvasEl.value.width, blurCanvasEl.value.height);
-    }
-    const finalStream = new MediaStream([processedTrack, ...localStream.getAudioTracks()]);
-    if (displayVideoEl.value) displayVideoEl.value.srcObject = finalStream;
-  }
-
-  cancelAnimationFrame(blurRafId);
-
-  if (hasBgEffect) {
+  // 2. Kung AI Background ang napili, i-load muna ang AI nang tahimik (Anti-Blink Fix)
+  if (hasBgEffect && !selfieSegmentation) {
     isAiLoading.value = true;
-    if (!selfieSegmentation) {
-      selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
-      selfieSegmentation.setOptions({ modelSelection: 0 }); 
-      selfieSegmentation.onResults(onBlurResults);
-      await selfieSegmentation.initialize();
-    }
+    selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
+    selfieSegmentation.setOptions({ modelSelection: 0 }); 
+    selfieSegmentation.onResults(onBlurResults);
+    await selfieSegmentation.initialize(); 
     isAiLoading.value = false;
+  }
+
+  // 3. Simulan ang tamang drawing loop
+  if (hasBgEffect) {
     processBlurFrame(); 
   } else {
     processSimpleFrame();
@@ -394,7 +411,7 @@ async function updateEffects() {
 }
 
 function processSimpleFrame() {
-  if (!cameraOn.value || (!touchUpOn.value && !lightingOn.value && !framingOn.value) || activeEffect.value !== 'none') return;
+  if (!cameraOn.value || activeEffect.value !== 'none') return;
   
   if (rawVideoEl.value && rawVideoEl.value.readyState >= 2) {
     const canvas = blurCanvasEl.value;
@@ -483,6 +500,24 @@ function onBlurResults(results) {
 </script>
 
 <style scoped>
+
+.btn-join.joining {
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  gap: 8px; 
+  opacity: 0.8; 
+  cursor: not-allowed;
+}
+.spinner-mini {
+  width: 16px; 
+  height: 16px; 
+  border: 2px solid rgba(32, 33, 36, 0.3); 
+  border-top-color: #202124; 
+  border-radius: 50%; 
+  animation: spin 1s linear infinite;
+}
+
 .prejoin-container {
   display: flex;
   align-items: center;

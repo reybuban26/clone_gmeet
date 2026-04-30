@@ -2,9 +2,19 @@
   <div class="home-wrapper">
     <header class="header">
       <div class="header-logo">
-        <svg viewBox="0 0 1024 1024" width="36" height="36">
-          <path d="M170.666667 256h469.333333c46.933333 0 85.333333 38.4 85.333333 85.333333v341.333334c0 46.933333-38.4 85.333333-85.333333 85.333333H170.666667c-46.933333 0-85.333333-38.4-85.333334-85.333333V341.333333c0-46.933333 38.4-85.333333 85.333334-85.333333z" fill="#4CAF50"/>
-          <path d="M938.666667 746.666667l-213.333334-128V405.333333l213.333334-128z" fill="#388E3C"/>
+        <svg viewBox="0 0 32 32" data-name="Layer 1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+          <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+          <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+          <g id="SVGRepo_iconCarrier">
+            <path d="M24,21.45V25a2.0059,2.0059,0,0,1-2,2H9V21h9V16Z" fill="#00ac47"></path>
+            <polygon fill="#31a950" points="24 11 24 21.45 18 16 18 11 24 11"></polygon>
+            <polygon fill="#ea4435" points="9 5 9 11 3 11 9 5"></polygon>
+            <rect fill="#4285f4" height="11" width="6" x="3" y="11"></rect>
+            <path d="M24,7v4h-.5L18,16V11H9V5H22A2.0059,2.0059,0,0,1,24,7Z" fill="#ffba00"></path>
+            <path d="M9,21v6H5a2.0059,2.0059,0,0,1-2-2V21Z" fill="#0066da"></path>
+            <path d="M29,8.26V23.74a.9989.9989,0,0,1-1.67.74L24,21.45,18,16l5.5-5,.5-.45,3.33-3.03A.9989.9989,0,0,1,29,8.26Z" fill="#00ac47"></path>
+            <polygon fill="#188038" points="24 10.55 24 21.45 18 16 23.5 11 24 10.55"></polygon>
+          </g>
         </svg>
         <span class="logo-text">Meet</span>
       </div>
@@ -22,7 +32,7 @@
       <div class="hero-content">
         <h1 class="hero-title">Secure video conferencing<br />for everyone</h1>
         <p class="hero-subtitle">
-          Connect, collaborate, and celebrate from anywhere with Google Meet
+          Connect, collaborate, and celebrate from anywhere with Max Meet
         </p>
 
         <div class="action-row">
@@ -39,7 +49,7 @@
               <svg viewBox="0 0 24 24" width="20" height="20" fill="#5f6368">
                 <path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/>
               </svg>
-              <input v-model="joinCode" type="text" placeholder="Enter a code or nickname" @keyup.enter="joinMeeting" />
+              <input v-model="joinCode" type="text" placeholder="Enter a code" @keyup.enter="joinMeeting" />
             </div>
             <button class="btn-join" :disabled="!joinCode.trim()" @click="joinMeeting">Join</button>
           </div>
@@ -50,7 +60,7 @@
         <div class="divider"></div>
 
         <p class="learn-more">
-          <a href="#">Learn more</a> about Google Meet
+          <a href="#">Learn more</a> about Max Meet
         </p>
       </div>
 
