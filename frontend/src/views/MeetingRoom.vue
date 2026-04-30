@@ -188,6 +188,74 @@
             </div>
           </div>
         </template>
+        <template v-if="activePanel === 'effects'">
+          <div class="panel-header">
+            <h3>Effects</h3>
+            <button class="panel-close" @click="activePanel = null"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+          </div>
+          <div class="effects-preview-box">
+             <video ref="effectsPreviewEl" autoplay playsinline muted class="mini-preview-vid" :class="{ 'mirrored': activeEffect === 'none' }"></video>
+             <div v-if="isAiLoading" class="preview-loading">Applying...</div>
+          </div>
+
+          <div class="effects-tabs">
+            <button :class="{ active: effectsTab === 'backgrounds' }" @click="effectsTab = 'backgrounds'">Backgrounds</button>
+            <button :class="{ active: effectsTab === 'filters' }" @click="effectsTab = 'filters'">Filters</button>
+            <button :class="{ active: effectsTab === 'appearance' }" @click="effectsTab = 'appearance'">Appearance</button>
+          </div>
+
+          <div class="effects-scroll-area">
+            
+            <div v-if="effectsTab === 'backgrounds'" class="tab-pane">
+              <div class="effects-grid">
+                <button class="effect-btn none-btn" :class="{ active: activeEffect === 'none' }" @click="setVideoEffect('none')">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="#9aa0a6"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm4.59-12.42L10 14.17l-2.59-2.58L6 13l4 4 8-8z"/></svg>
+                  <span class="eff-label">No effect</span>
+                </button>
+                <button class="effect-btn blur-btn" :class="{ active: activeEffect === 'blur' }" @click="setVideoEffect('blur')">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="#9aa0a6"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 16a7 7 0 110-14 7 7 0 010 14zm-1-7h2v2h-2zm0-4h2v2h-2zm-4 4h2v2H7zm0-4h2v2H7zm8 4h2v2h-2zm0-4h2v2h-2z"/></svg>
+                  <span class="eff-label">Blur</span>
+                </button>
+              </div>
+
+              <div v-for="category in bgCategories" :key="category.name" class="bg-category">
+                <h4 class="cat-title">{{ category.name }}</h4>
+                <div class="effects-grid">
+                  <button v-for="bg in category.items" :key="bg.id" class="effect-btn img-btn" :class="{ active: activeEffect === bg.url }" @click="setVideoEffect(bg.url)">
+                    <img :src="bg.url" alt="bg">
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="effectsTab === 'filters'" class="tab-pane">
+               <p class="tab-desc">Fun filters and animations (Coming Soon)</p>
+               <div class="effects-grid">
+                 <div class="filter-placeholder">🐱</div>
+                 <div class="filter-placeholder">🕶️</div>
+                 <div class="filter-placeholder">🎩</div>
+               </div>
+            </div>
+
+            <div v-if="effectsTab === 'appearance'" class="tab-pane">
+               <div class="appearance-card">
+                 <h4>Touch up</h4>
+                 <p>Subtly smooths complexion and brightens under eyes</p>
+                 <label class="switch"><input type="checkbox" v-model="touchUpOn"><span class="slider round"></span></label>
+               </div>
+               <div class="appearance-card">
+                 <h4>Lighting</h4>
+                 <p>Adjusts video brightness automatically</p>
+                 <label class="switch"><input type="checkbox" v-model="lightingOn"><span class="slider round"></span></label>
+               </div>
+               <div class="appearance-card">
+                 <h4>Framing</h4>
+                 <p>Keeps you in the center of the video</p>
+                 <label class="switch"><input type="checkbox" v-model="framingOn"><span class="slider round"></span></label>
+               </div>
+            </div>
+          </div>
+        </template>
       </div>
     </Transition>
 
@@ -228,26 +296,49 @@
           <svg v-if="micOn" viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
           <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
         </button>
-        <button class="ctrl-btn" :class="{ off: !cameraOn }" @click="toggleCamera" :title="cameraOn ? 'Turn off camera' : 'Turn on camera'">
-          <svg v-if="cameraOn" viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
-          <svg v-else viewBox="0 0 24 24" width="20" height="20"><path fill="white" d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/><line x1="2" y1="2" x2="22" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
-        </button>
+
+        <div class="ctrl-group" :class="{ off: !cameraOn }">
+          <button class="ctrl-group-main" @click="toggleCamera" :title="cameraOn ? 'Turn off camera' : 'Turn on camera'">
+            <svg v-if="cameraOn" viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+            <svg v-else viewBox="0 0 24 24" width="20" height="20"><path fill="white" d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/><line x1="2" y1="2" x2="22" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </button>
+          <button class="ctrl-group-arrow" @click="showCamOptions = !showCamOptions; showMoreDropdown = false; showEmojiPicker = false">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M7 10l5 5 5-5z"/></svg>
+          </button>
+
+          <Transition name="pop-center">
+            <div v-if="showCamOptions" class="cam-mini-menu" @click.stop>
+              <div class="menu-cam-title">Available cameras</div>
+              <div class="menu-cam-item active-cam">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="#8ab4f8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                HD Web Camera
+              </div>
+              <div class="menu-divider"></div>
+              <button class="menu-action-btn" @click="setVideoEffect('blur')">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="#e8eaed"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 16a7 7 0 110-14 7 7 0 010 14zm-1-7h2v2h-2zm0-4h2v2h-2zm-4 4h2v2H7zm0-4h2v2H7zm8 4h2v2h-2zm0-4h2v2h-2z"/></svg>
+                Blur background
+              </button>
+              <button class="menu-action-btn" @click="togglePanel('effects'); showCamOptions = false">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="#e8eaed"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm4.59-12.42L10 14.17l-2.59-2.58L6 13l4 4 8-8z"/></svg>
+                Apply visual effects
+              </button>
+            </div>
+          </Transition>
+        </div>
+
         <button class="ctrl-btn" :class="{ active: screenSharing }" @click="toggleScreenShare" title="Present now">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6zm8 9l-4-4h3V8h2v3h3l-4 4z"/></svg>
-        </button>
-
-        <button class="ctrl-btn" :class="{ active: isBlurOn }" @click="toggleBlur" :disabled="isBlurLoading || !cameraOn" title="Blur background">
-          <svg v-if="isBlurLoading" viewBox="0 0 24 24" width="20" height="20" class="spinner"><circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="3" stroke-dasharray="30" stroke-linecap="round"/></svg>
-          <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 16a7 7 0 110-14 7 7 0 010 14zm-1-7h2v2h-2zm0-4h2v2h-2zm-4 4h2v2H7zm0-4h2v2H7zm8 4h2v2h-2zm0-4h2v2h-2z"/></svg>
         </button>
 
         <button class="ctrl-btn" :class="{ active: showEmojiPicker }" @click.stop="toggleEmojiPicker" title="Send a reaction">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
         </button>
+
         <button v-if="isHost" class="ctrl-btn" :class="{ off: isRecording, active: isUploading }" @click="toggleRecording" :disabled="isUploading" :title="isRecording ? 'Stop recording' : 'Start recording'">
           <svg v-if="isRecording" viewBox="0 0 24 24" width="20" height="20" fill="white"><rect x="7" y="7" width="10" height="10"/></svg>
           <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="white"><circle cx="12" cy="12" r="8"/></svg>
         </button>
+
         <div class="more-btn-wrap">
           <button class="ctrl-btn" :class="{ active: showMoreDropdown }" @click.stop="toggleMoreDropdown">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
@@ -280,10 +371,10 @@
                 </svg>
                 {{ isFullscreen ? 'Exit full screen' : 'Full screen' }}
               </button>
-              
             </div>
           </Transition>
         </div>
+
         <button class="ctrl-btn end-call" @click="leaveCall" title="Leave call">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="white"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
         </button>
@@ -402,9 +493,54 @@ const rawVideoEl     = ref(null)
 const blurCanvasEl   = ref(null)
 const isBlurOn       = ref(false)
 const isBlurLoading  = ref(false)
+
+// BAGONG VARIABLES PARA SA EFFECTS SIDE PANEL
+const activeEffect     = ref('none')
+const isAiLoading      = ref(false)
+const showCamOptions   = ref(false)
+const effectsPreviewEl = ref(null) // Para sa maliit na video sa loob ng panel
+const effectsTab       = ref('backgrounds') // 'backgrounds', 'filters', 'appearance'
+const touchUpOn  = ref(false)
+const lightingOn = ref(false)
+const framingOn  = ref(false)
+
 let selfieSegmentation = null
 let blurRafId          = null
 let processedStream    = null
+const customBgImage    = new Image()
+
+const bgCategories = ref([
+  {
+    name: 'Professional',
+    items: [
+      { id: 'prof1', url: '/backgrounds/professional1.jpeg' },
+      { id: 'prof2', url: '/backgrounds/professional2.jpeg' },
+      { id: 'prof3', url: '/backgrounds/professional3.jpeg' },
+      { id: 'prof4', url: '/backgrounds/professional4.jpeg' },
+      { id: 'prof5', url: '/backgrounds/professional5.jpeg' },
+      { id: 'prof6', url: '/backgrounds/professional6.jpeg' },
+      { id: 'prof7', url: '/backgrounds/professional7.jpeg' },
+      { id: 'prof8', url: '/backgrounds/professional8.jpeg' },
+      { id: 'prof9', url: '/backgrounds/professional9.jpeg' },
+      { id: 'prof10', url: '/backgrounds/professional10.jpeg' },
+    ]
+  },
+  {
+    name: 'Creative',
+    items: [
+      { id: 'crea1', url: '/backgrounds/creatives11.jpeg' },
+      { id: 'crea2', url: '/backgrounds/creatives12.jpeg' },
+      { id: 'crea3', url: '/backgrounds/creatives13.jpeg' },
+      { id: 'crea4', url: '/backgrounds/creatives14.jpeg' },
+      { id: 'crea5', url: '/backgrounds/creatives15.jpeg' },
+      { id: 'crea6', url: '/backgrounds/creatives16.jpeg' },
+      { id: 'crea7', url: '/backgrounds/creatives17.jpeg' },
+      { id: 'crea8', url: '/backgrounds/creatives18.jpeg' },
+      { id: 'crea9', url: '/backgrounds/creatives19.jpeg' },
+      { id: 'crea10', url: '/backgrounds/creatives20.jpeg' },
+    ]
+  }
+])
 
 const peer        = ref(null)
 const currentCall = ref(null)
@@ -1107,10 +1243,56 @@ async function toggleBlur() {
   }
 }
 
-function processBlurFrame() {
-  if (!isBlurOn.value || !rawVideoEl.value) return;
+// ==========================
+// VISUAL EFFECTS (Blur & Virtual Background)
+// ==========================
+async function setVideoEffect(effectType) {
+  if (!cameraOn.value) return;
+  activeEffect.value = effectType;
+
+  // Kung 'none' ang pinili, patayin ang AI
+  if (effectType === 'none') {
+    isAiLoading.value = false;
+    if (localVideoEl.value) localVideoEl.value.srcObject = localStream;
+    if (effectsPreviewEl.value) effectsPreviewEl.value.srcObject = localStream; // Balik sa normal ang mini preview
+    replaceVideoTrackInPeer(originalVideoTrack);
+    return;
+  }
+
+  // I-load ang picture kung image ang pinili
+  if (effectType !== 'blur') {
+    customBgImage.src = effectType;
+  }
+
+  // Buhayin ang AI kung hindi pa umiikot
+  isAiLoading.value = true;
+  if (!selfieSegmentation) {
+    selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
+    selfieSegmentation.setOptions({ modelSelection: 0 }); // High Quality
+    selfieSegmentation.onResults(onBlurResults);
+    await selfieSegmentation.initialize();
+  }
   
-  // DAGDAG ITO: Siguraduhing may laman at nagpi-play ang video bago ipasa sa AI
+  isAiLoading.value = false;
+  
+  // Kung hindi pa gumagana yung loop, simulan na
+  if (activeEffect.value !== 'none') {
+    processBlurFrame();
+    processedStream = blurCanvasEl.value.captureStream(30);
+    const processedTrack = processedStream.getVideoTracks()[0];
+
+    const finalStream = new MediaStream([processedTrack, ...localStream.getAudioTracks()]);
+    if (localVideoEl.value) localVideoEl.value.srcObject = finalStream;
+    if (effectsPreviewEl.value) effectsPreviewEl.value.srcObject = finalStream; // Update mini preview
+    replaceVideoTrackInPeer(processedTrack);
+  }
+}
+
+function processBlurFrame() {
+  if (activeEffect.value === 'none' || !rawVideoEl.value) {
+    cancelAnimationFrame(blurRafId);
+    return;
+  }
   if (rawVideoEl.value.readyState < 2) {
     blurRafId = requestAnimationFrame(processBlurFrame);
     return;
@@ -1119,7 +1301,6 @@ function processBlurFrame() {
   selfieSegmentation.send({ image: rawVideoEl.value }).then(() => {
     blurRafId = requestAnimationFrame(processBlurFrame);
   }).catch((err) => {
-    console.error("AI Processing Error:", err);
     blurRafId = requestAnimationFrame(processBlurFrame);
   });
 }
@@ -1134,19 +1315,40 @@ function onBlurResults(results) {
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 1. MASK FEATHERING: Binabaan sa 1px para saktong tanggalin lang ang "bungi-bungi" (jagged edges) nang walang halo effect
   ctx.filter = 'blur(1px)'; 
   ctx.drawImage(results.segmentationMask, 0, 0, canvas.width, canvas.height);
 
-  // 2. FOREGROUND: Ipatong ang original na tao (Tanging tao lang ang lilitaw)
+  // FOREGROUND: Ang Tao
   ctx.globalCompositeOperation = 'source-in';
-  ctx.filter = 'none'; 
+  
+  // === APPEARANCE LOGIC (Touch Up & Lighting) ===
+  let fgFilter = 'none';
+  // Kung naka-on ang Lighting, gawing 20% mas maliwanag
+  let lightFilter = lightingOn.value ? 'brightness(1.2)' : '';
+  // Kung naka-on ang Touch up, kuminis nang konti (contrast) at mas maging warm ang kulay
+  let touchFilter = touchUpOn.value ? 'contrast(1.05) saturate(1.15) sepia(0.08)' : '';
+  
+  if (lightFilter || touchFilter) {
+    fgFilter = `${lightFilter} ${touchFilter}`.trim();
+  }
+  
+  ctx.filter = fgFilter || 'none'; 
   ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
 
-  // 3. BACKGROUND: Ipatong sa likod yung blurred na paligid
+  // BACKGROUND: Blur o Picture
   ctx.globalCompositeOperation = 'destination-over';
-  ctx.filter = 'blur(12px)'; // 12px ang standard sweet spot ng Google Meet para sa natural depth of field
-  ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+  if (activeEffect.value === 'blur') {
+    // === BLUR INTENSITY ===
+    // Dati itong blur(12px), ginawa nating 24px para sobrang blur! Pwede mong gawing 32px kung bitin pa.
+    ctx.filter = 'blur(24px)'; 
+    ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+  } else if (customBgImage.complete && customBgImage.src) {
+    ctx.filter = 'none';
+    const scale = Math.max(canvas.width / customBgImage.width, canvas.height / customBgImage.height);
+    const x = (canvas.width / 2) - (customBgImage.width / 2) * scale;
+    const y = (canvas.height / 2) - (customBgImage.height / 2) * scale;
+    ctx.drawImage(customBgImage, x, y, customBgImage.width * scale, customBgImage.height * scale);
+  }
 
   ctx.restore();
 }
@@ -1292,6 +1494,18 @@ async function scrollMessages() {
 function togglePanel(name) {
   activePanel.value = activePanel.value === name ? null : name
   if (name === 'chat') unreadCount.value = 0
+
+  // DAGDAG ITO: Buhayin ang Mini-Preview kapag binuksan ang Effects Panel
+  if (name === 'effects') {
+    setTimeout(() => {
+      if (effectsPreviewEl.value) {
+        // I-check kung may active na blur/picture o kung normal camera lang
+        effectsPreviewEl.value.srcObject = (activeEffect.value !== 'none' && processedStream) 
+          ? new MediaStream([processedStream.getVideoTracks()[0], ...localStream.getAudioTracks()]) 
+          : localStream;
+      }
+    }, 100);
+  }
 }
 
 async function leaveCall() {
@@ -1508,6 +1722,56 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /* .. Yung existing styles mo same pa rin ..*/
+
+/* ========================
+   SPLIT BUTTONS & EFFECTS MENU
+   ======================== */
+.ctrl-group { display: flex; align-items: center; background: #3c4043; border-radius: 24px; position: relative; height: 48px; transition: background 0.2s; }
+.ctrl-group.off { background: #ea4335 !important; }
+.ctrl-group:hover:not(.off) { background: #4a4e51; }
+.ctrl-group.off:hover { background: #c5221f !important; }
+.ctrl-group-main { width: 48px; height: 100%; background: transparent; border: none; border-radius: 24px 0 0 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.ctrl-group-arrow { width: 24px; height: 100%; background: transparent; border: none; border-left: 1px solid rgba(255, 255, 255, 0.2); border-radius: 0 24px 24px 0; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.ctrl-group-arrow:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* CAM MINI MENU */
+.cam-mini-menu { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); background: #2d2e30; border-radius: 8px; padding: 8px 0; width: 240px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 100; }
+.menu-cam-title { padding: 8px 20px; font-size: 11px; text-transform: uppercase; color: #9aa0a6; letter-spacing: 0.5px; font-weight: 500; }
+.menu-cam-item { padding: 10px 20px; display: flex; align-items: center; gap: 12px; font-size: 14px; color: #e8eaed; }
+.active-cam { color: #8ab4f8; }
+.menu-divider { height: 1px; background: #3c4043; margin: 8px 0; }
+.menu-action-btn { width: 100%; text-align: left; background: transparent; border: none; padding: 10px 20px; color: #e8eaed; font-size: 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.2s; }
+.menu-action-btn:hover { background: rgba(255,255,255,0.08); }
+
+/* EFFECTS SIDE PANEL */
+.effects-preview-box { margin: 16px; height: 140px; background: #000; border-radius: 8px; overflow: hidden; position: relative; flex-shrink: 0; border: 1px solid #3c4043; }
+.mini-preview-vid { width: 100%; height: 100%; object-fit: cover; }
+.mini-preview-vid.mirrored { transform: scaleX(-1); }
+.preview-loading { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; color: #8ab4f8; font-size: 13px; font-weight: 500; }
+
+.effects-tabs { display: flex; border-bottom: 1px solid #3c4043; padding: 0 16px; flex-shrink: 0; }
+.effects-tabs button { flex: 1; background: none; border: none; color: #9aa0a6; padding: 12px 0; font-size: 13px; font-weight: 500; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+.effects-tabs button:hover { color: #e8eaed; }
+.effects-tabs button.active { color: #8ab4f8; border-bottom-color: #8ab4f8; }
+
+.effects-scroll-area { flex: 1; overflow-y: auto; padding: 16px; scrollbar-width: thin; scrollbar-color: #3c4043 transparent; }
+.tab-pane { display: flex; flex-direction: column; gap: 24px; }
+
+.effects-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.effect-btn { position: relative; aspect-ratio: 1; border-radius: 8px; border: 2px solid transparent; background: #3c4043; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 0; transition: transform 0.1s, border-color 0.2s; }
+.effect-btn:hover { transform: scale(1.05); }
+.effect-btn.active { border-color: #8ab4f8; }
+.effect-btn img { width: 100%; height: 100%; object-fit: cover; }
+.eff-label { font-size: 10px; color: #9aa0a6; margin-top: 4px; }
+.cat-title { font-size: 13px; color: #e8eaed; font-weight: 500; margin: 0 0 12px 0; }
+
+.tab-desc { font-size: 13px; color: #9aa0a6; text-align: center; margin: 0; }
+.filter-placeholder { aspect-ratio: 1; background: #3c4043; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+.appearance-card { background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; position: relative; }
+.appearance-card h4 { margin: 0 0 4px 0; color: #e8eaed; font-size: 14px; font-weight: 500; }
+.appearance-card p { margin: 0; color: #9aa0a6; font-size: 12px; max-width: 80%; }
+.appearance-card .switch { position: absolute; top: 16px; right: 16px; }
+
 .room { 
   position: fixed; /* I-lock sa screen para bawal mag-scroll */
   top: 0;
