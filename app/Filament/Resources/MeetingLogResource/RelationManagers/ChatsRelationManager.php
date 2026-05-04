@@ -29,10 +29,25 @@ class ChatsRelationManager extends RelationManager
                         default => 'gray',
                     }),
 
+                // IN-UPDATE NATIN ITO:
                 Tables\Columns\TextColumn::make('message')
                     ->label('Message')
                     ->wrap()
-                    ->searchable(),
+                    ->searchable()
+                    ->html() // <--- Payagan ang HTML rendering
+                    ->formatStateUsing(function (string $state) {
+                        // I-check kung attached file ito
+                        if (str_starts_with($state, 'Attached File: ')) {
+                            // Kunin lang yung URL
+                            $url = trim(str_replace('Attached File: ', '', $state));
+                            
+                            // I-return bilang clickable <a> tag na may kulay blue
+                            return '📎 <a href="' . $url . '" target="_blank" style="color: #3b82f6; text-decoration: underline; font-weight: 500;">View Attached File</a>';
+                        }
+                        
+                        // Kung normal chat, e() para iwas XSS (security)
+                        return e($state);
+                    }),
             ])
             ->defaultSort('sent_at', 'asc')
             ->paginated([25, 50, 100])

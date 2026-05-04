@@ -123,10 +123,22 @@
             </div>
             <div v-for="msg in messages" :key="msg.id" class="message-item" :class="{ own: msg.isOwn }">
               <div class="msg-meta"><span class="msg-sender">{{ msg.sender }}</span><span class="msg-time">{{ msg.time }}</span></div>
-              <p class="msg-text">{{ msg.text }}</p>
+              <p v-if="msg.text" class="msg-text" v-html="formatMessage(msg.text)"></p>
+              <div v-if="msg.file" class="msg-file-attachment">
+                <img v-if="msg.fileType.startsWith('image/')" :src="msg.fileData" class="chat-image" @click="openImage(msg.fileData)" />
+                <a v-else :href="msg.fileData" :download="msg.fileName" class="chat-file-link">
+                   <span class="file-icon-wrapper" v-html="getFileIconSVG(msg.fileName)"></span>
+                   <span class="file-name-text">{{ msg.fileName }}</span>
+                </a>
+              </div>
             </div>
           </div>
           <div class="chat-input-row">
+            <input type="file" ref="fileInputEl" @change="handleFileUpload" style="display: none;" accept="image/*,.pdf,.doc,.docx,.txt" />
+            <button class="chat-attach" @click="$refs.fileInputEl.click()" title="Attach file">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="#9aa0a6"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+            </button>
+            
             <input v-model="messageInput" class="chat-input" placeholder="Send a message" @keyup.enter="sendMessage" />
             <button class="chat-send" @click="sendMessage" :disabled="!messageInput.trim()"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
           </div>
@@ -1133,11 +1145,31 @@ async function connectToHost(code, attempts = 0) {
   }
 }
 
+// --- DAGDAG: LOGIC PARA SA PAG-RECEIVE NG FILES ---
 function handleIncomingData(data) {
   if (data.type === 'chat') {
     messages.value.push({ id: Date.now(), sender: data.sender, text: data.text, time: data.time, isOwn: false })
     if (activePanel.value !== 'chat') unreadCount.value++
     scrollMessages()
+
+  } else if (data.type === 'chat_file') {
+    const blob = new Blob([data.fileBlob], { type: data.fileType });
+    const fileUrl = URL.createObjectURL(blob);
+
+    messages.value.push({
+      id: Date.now(),
+      sender: data.sender,
+      time: data.time,
+      isOwn: false,
+      file: true,
+      fileName: data.fileName,
+      fileType: data.fileType,
+      fileData: fileUrl // <-- Render ang link!
+    });
+    
+    if (activePanel.value !== 'chat') unreadCount.value++
+    scrollMessages()
+    
   } else if (data.type === 'reaction') {
     const sender = isHost.value ? 'Guest' : 'Host'
     spawnEmoji(data.emoji, sender)
@@ -1515,6 +1547,116 @@ function toggleFullscreen() {
   showMoreDropdown.value = false
 }
 function onFullscreenChange() { isFullscreen.value = !!document.fullscreenElement }
+
+// --- DAGDAG: CHAT ENHANCEMENTS LOGIC ---
+
+// Function para mag-generate ng tamang SVG Icon base sa File Type
+function getFileIconSVG(fileName) {
+  if (!fileName) return '';
+  const ext = fileName.split('.').pop().toLowerCase();
+
+  // PDF (Red)
+  if (['pdf'].includes(ext)) {
+    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="#ea4335"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM14 10h1v-1.5h-1V10z"/></svg>`;
+  } 
+  // Word / Docs (Blue)
+  else if (['doc', 'docx', 'txt', 'rtf'].includes(ext)) {
+    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="#4285f4"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>`;
+  } 
+  // Excel / Sheets / CSV (Green)
+  else if (['xls', 'xlsx', 'csv'].includes(ext)) {
+    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="#34a853"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14H6v-3h4v3zm0-5H6V9h4v3zm5 5h-4v-3h4v3zm0-5h-4V9h4v3z"/></svg>`;
+  } 
+  // PowerPoint / Slides (Yellow)
+  else if (['ppt', 'pptx'].includes(ext)) {
+    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="#fbbc04"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-6 10h2v6H8v-6zm3-1h3c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2h-3v-6zm2 3v-1h-1v1h1zm1-8V3.5L18.5 9H13z"/></svg>`;
+  } 
+  // ZIP / RAR / Archive (Orange/Yellow Folder)
+  else if (['zip', 'rar', '7z', 'tar'].includes(ext)) {
+    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="#fbbc04"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 10H6v-2h8v2zm4-4H6v-2h12v2z"/></svg>`;
+  } 
+  // Default / Other Files (Gray)
+  else {
+    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="#9aa0a6"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>`;
+  }
+}
+
+// Function para gawing clickable ang mga URL
+function formatMessage(text) {
+  if (!text) return '';
+  // Simpleng regex para hanapin ang mga URL
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.replace(urlRegex, (url) => {
+    return `<a href="${url}" target="_blank" class="chat-inline-link">${url}</a>`;
+  });
+}
+
+// Function para i-handle ang pagpili ng file
+const fileInputEl = ref(null);
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (file.size > 15 * 1024 * 1024) {
+    alert("File is too large. Please select a file smaller than 15MB.");
+    return;
+  }
+
+  const code = route.params.code;
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // 1. I-display agad sa sariling screen (Gamit ang Object URL para mas magaan sa memory!)
+  const fileUrl = URL.createObjectURL(file);
+  messages.value.push({
+    id: Date.now(),
+    sender: 'You',
+    time: time,
+    isOwn: true,
+    file: true,
+    fileName: file.name,
+    fileType: file.type,
+    fileData: fileUrl 
+  });
+  scrollMessages();
+
+  // 2. I-send ang File object diretso sa PeerJS (Awtomatikong pinuputol ng PeerJS ang 15MB kaya di magla-lag!)
+  if (dataConn.value?.open) {
+    dataConn.value.send({
+      type: 'chat_file',
+      sender: isHost.value ? 'Host' : 'Guest',
+      time: time,
+      fileName: file.name,
+      fileType: file.type,
+      fileBlob: file // <-- Mismong file na ang ipapadala, hindi na mabigat na Base64 text
+    });
+  }
+
+  // 3. I-upload sa Laravel Backend gamit ang FormData!
+  const formData = new FormData();
+  formData.append('meeting_code', code);
+  formData.append('sender', isHost.value ? 'Host' : 'Guest');
+  formData.append('file', file); // <-- Ipasa ang file sa Laravel
+  formData.append('message', 'Attached File');
+
+  axios.post(`${API_URL}/api/meetings/${code}/chats`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }).then(res => {
+    console.log("File uploaded to Laravel successfully!");
+  }).catch(err => {
+    console.error("FILE UPLOAD ERROR: ", err);
+  });
+
+  event.target.value = ''; // I-reset ang input
+}
+
+// Function para lakihan ang image pag kinlick
+function openImage(dataUrl) {
+  const w = window.open("");
+  w.document.write(`<img src="${dataUrl}" style="max-width:100%; max-height:100vh; display:block; margin:auto;"/>`);
+}
+
+// --- END DAGDAG ---
 
 function sendMessage() {
   const text = messageInput.value.trim()
@@ -2215,6 +2357,9 @@ input:checked + .slider:before { transform: translateX(18px); }
 .btn-deny { background: transparent; color: #1a73e8; border: none; padding: 10px 20px; border-radius: 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
 .btn-deny:hover { background: #f1f3f4; }
 
+/* ======================== */
+/*    MOBILE RESPONSIVE     */
+/* ======================== */
 @media (max-width: 768px) {
   /* 1. Ayusin ang Video Size (Ibalik sa full width ang screen) */
   .local-solo, .remote-fill, .screen-fill {
@@ -2326,4 +2471,76 @@ input:checked + .slider:before { transform: translateX(18px); }
     pointer-events: none !important;
     z-index: -100 !important;
   }
+
+  /* --- DAGDAG: CHAT ENHANCEMENTS CSS --- */
+.chat-attach {
+  width: 36px; height: 36px; border-radius: 50%; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s;
+}
+.chat-attach:hover { background: rgba(255,255,255,0.1); }
+
+/* Para clickable links sa loob ng chat text */
+:deep(.chat-inline-link) {
+  color: #8ab4f8; text-decoration: underline; word-break: break-all; cursor: pointer;
+}
+.message-item.own :deep(.chat-inline-link) {
+  color: #e8eaed; /* Gawing light gray ang link pag ikaw ang nag-send (blue background) */
+}
+
+/* File Attachment Styles */
+.msg-file-attachment {
+  margin-top: 4px; border-radius: 8px; overflow: hidden; max-width: 200px;
+}
+.chat-image {
+  width: 100%; height: auto; border-radius: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: opacity 0.2s;
+}
+.chat-image:hover { opacity: 0.8; }
+/* Palitan ang .chat-file-link ng code na ito: */
+.chat-file-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #3c4043;
+  color: #e8eaed;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 13px;
+  border: 1px solid rgba(255,255,255,0.1);
+  word-break: break-all;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.message-item.own .chat-file-link { 
+  background: rgba(255,255,255,0.15); 
+  color: #fff; 
+  border-color: transparent;
+}
+
+.chat-file-link:hover { 
+  background: rgba(255,255,255,0.2); 
+}
+
+/* DAGDAG ITO: Puting background box sa likod ng SVG icon para laging lutang ang kulay */
+.file-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  padding: 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.file-name-text {
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; 
+  line-clamp: 2; 
+  -webkit-box-orient: vertical;
+}
+/* --- END DAGDAG --- */
 </style>

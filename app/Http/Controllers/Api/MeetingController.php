@@ -78,23 +78,41 @@ class MeetingController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function storeChat(Request $request, $code)
+    public function storeChat(Request $request, string $code)
     {
         try {
             $chat = new MeetingChat();
             $chat->meeting_code = $code;
             $chat->sender = $request->input('sender');
-            $chat->message = $request->input('message');
-            $chat->save(); // Ang 'sent_at' ay automatic na nilalagay ng Model mo
+            $messageText = $request->input('message');
+
+            // DAGDAG ITO: I-check kung may file na ipinasa ang Vue
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                
+                // Gumawa ng unique na pangalan para sa file
+                $filename = time() . '_' . preg_replace('/\s+/', '_', $file->getClientOriginalName());
+                
+                // I-save sa storage/app/public/chat_files
+                $path = $file->storeAs('chat_files', $filename, 'public');
+                
+                // Kunin ang public URL link ng na-save na file
+                $fileUrl = asset('storage/' . $path);
+                
+                // I-format ang ise-save sa database (Dito babasahin ng Filament yung link)
+                $messageText = "Attached File: " . $fileUrl;
+            }
+
+            $chat->message = $messageText;
+            $chat->save(); 
 
             return response()->json(['status' => 'success']);
         } catch (\Exception $e) {
-            // Ibabato natin ang error pabalik sa Vue para makita natin
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 
-    public function storeRecording(Request $request, $code)
+    public function storeRecording(Request $request, string $code)
     {
         try {
             if ($request->hasFile('audio')) {
