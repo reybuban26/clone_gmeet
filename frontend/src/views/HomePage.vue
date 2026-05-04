@@ -313,7 +313,12 @@ watch(settingsTab, async (newVal) => {
 .settings-tab { display: flex; align-items: center; gap: 16px; padding: 12px 24px; font-size: 14px; font-weight: 500; color: #5f6368; border: none; background: none; cursor: pointer; text-align: left; }
 .settings-tab:hover { background: #f1f3f4; }
 .settings-tab.active { background: #e8f0fe; color: #1a73e8; border-top-right-radius: 24px; border-bottom-right-radius: 24px; margin-right: 12px; }
-.settings-content { flex: 1; padding: 40px; position: relative; }
+.settings-content { 
+  flex: 1; 
+  padding: 40px; 
+  padding-top: 60px; /* DAGDAG: Para bumaba nang konti ang content at hindi dikit sa X button */
+  position: relative; 
+}
 .close-btn { position: absolute; top: 16px; right: 16px; background: none; border: none; cursor: pointer; padding: 8px; border-radius: 50%; display: flex; }
 .close-btn:hover { background: #f1f3f4; }
 
@@ -327,7 +332,18 @@ watch(settingsTab, async (newVal) => {
 .select-wrapper select:focus { border: 2px solid #1a73e8; }
 .select-wrapper::after { content: "▼"; position: absolute; right: 16px; font-size: 10px; color: #5f6368; pointer-events: none; }
 
-.video-preview-block { width: 220px; height: 124px; background: #f1f3f4; border-radius: 8px; border: 1px solid #dadce0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.video-preview-block { 
+  width: 280px; /* Linalakihan natin nang konti para mas maganda */
+  height: 157px; /* Sakto sa 16:9 aspect ratio */
+  background: #f1f3f4; 
+  border-radius: 8px; 
+  border: 1px solid #dadce0; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  overflow: hidden; 
+  flex-shrink: 0; /* Para hindi siya ma-squish ng camera options */
+}
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
