@@ -15,8 +15,7 @@
 
     <div class="content-area" :class="{ 'with-emoji': showEmojiPicker, 'with-panel': activePanel }">
       <div class="video-wrap" :class="remoteClass">
-        <video ref="remoteVideoEl" autoplay playsinline class="video-fill" :class="{ 'vid-hidden': !remoteCameraOn }"></video>
-        
+        <video ref="remoteVideoEl" autoplay playsinline class="video-fill" :class="{ 'vid-hidden': !remoteCameraOn, 'is-remote-screen': remoteScreenSharing }"></video>
         <div v-if="!remoteCameraOn" class="tile-avatar">
           <div class="tile-avatar-circle" :style="{ backgroundColor: remoteAvatarColor }">
             <svg viewBox="0 0 24 24" width="50%" height="50%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
@@ -48,7 +47,7 @@
       </div>
 
       <div class="video-wrap" :class="screenClass">
-        <video ref="screenVideoEl" autoplay playsinline class="video-fill"></video>
+        <video ref="screenVideoEl" autoplay playsinline muted class="video-fill"></video>
         <div class="screen-presenter-bar">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
           You are presenting
@@ -63,7 +62,7 @@
         @touchmove="onDragMove"
         @touchend="onDragEnd"
       >
-        <video ref="localVideoEl" autoplay muted playsinline class="video-fill" :class="{ mirrored: !screenSharing, 'vid-hidden': !cameraOn && !screenSharing }"></video>
+        <video ref="localVideoEl" autoplay muted playsinline class="video-fill mirrored" :class="{ 'vid-hidden': !cameraOn }"></video>
         <div v-if="!cameraOn && !screenSharing" class="tile-avatar">
           <div class="tile-avatar-circle">
             <svg viewBox="0 0 24 24" width="50%" height="50%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
@@ -596,6 +595,9 @@ const remoteMicOn   = ref(true)
 const remoteCameraOn = ref(true) // DAGDAG ITO
 const remoteAvatarColor = ref('#0f9d58')
 
+// DAGDAG ITO:
+const remoteScreenSharing = ref(false)
+
 const remoteConnected = ref(false)
 const peerError       = ref('')
 const isHost          = ref(false)
@@ -636,6 +638,8 @@ let callTimer          = null
 let pipWindow          = null 
 let pipInitialized     = false 
 
+let audioMixerCtx      = null;
+
 // --- AUDIO MIXING & RECORDING STATE ---
 const isRecording = ref(false)
 const isUploading = ref(false) 
@@ -649,8 +653,8 @@ let audioSources = [];
 let recordingStartTime = null; // DAGDAG: Para i-track ang totoong tagal ng recording
 
 const localClass = computed(() => {
-  if (remoteConnected.value && !screenSharing.value) return 'local-pip'
-  if (screenSharing.value) return 'local-pip local-pip-cam'
+  // Kung may kausap O KAYA nag-share screen ka, dapat laging naka-PiP (maliit sa gilid) ang camera mo
+  if (remoteConnected.value || screenSharing.value) return 'local-pip'
   return 'local-solo'
 })
 
@@ -963,6 +967,12 @@ function initAudioMixing() {
     localSource.connect(audioDestination);
     audioSources.push(localSource); 
   }
+
+  if (screenStream && screenStream.getAudioTracks().length > 0) {
+    const screenSource = audioContext.createMediaStreamSource(screenStream);
+    screenSource.connect(audioDestination);
+    audioSources.push(screenSource);
+  }
 }
 
 // Function para isama ang boses ng guest
@@ -1189,7 +1199,10 @@ async function connectToHost(code, attempts = 0) {
     const { data } = await axios.get(`${API_URL}/api/meetings/${code}/peer`)
     if (!data.peer_id) { setTimeout(() => connectToHost(code, attempts + 1), 1000); return }
 
-    const call = peer.value.call(data.peer_id, localStream)
+    const videoTrack = processedStream ? processedStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
+    const streamToSend = new MediaStream([videoTrack, ...localStream.getAudioTracks()]);
+    const call = peer.value.call(data.peer_id, streamToSend)
+    
     currentCall.value = call
     call.on('stream', (remote) => {
       remoteConnected.value = true
@@ -1247,6 +1260,8 @@ function handleIncomingData(data) {
     remoteMicOn.value = data.on
   } else if (data.type === 'camera') {
     remoteCameraOn.value = data.on
+  } else if (data.type === 'screen_share') {
+    remoteScreenSharing.value = data.on
   } else if (data.type === 'force_mute') {
     if (micOn.value) {
       toggleMic();
@@ -1272,23 +1287,23 @@ function toggleMic() {
 
 function toggleCamera() {
   cameraOn.value = !cameraOn.value
-  localStream?.getVideoTracks().forEach(t => (t.enabled = cameraOn.value))
-  
-  if (localVideoEl.value) {
-      if (!cameraOn.value) {
-         const canvas = document.createElement('canvas');
-         canvas.width = 2; canvas.height = 2;
-         const ctx = canvas.getContext('2d');
-         ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 2, 2);
-         localVideoEl.value.srcObject = canvas.captureStream();
-      } else {
-         localVideoEl.value.srcObject = isBlurOn.value && processedStream ? new MediaStream([processedStream.getVideoTracks()[0], ...localStream.getAudioTracks()]) : localStream;
-      }
+  if (localStream) {
+    localStream.getVideoTracks().forEach(t => t.enabled = cameraOn.value)
+  }
+  if (!cameraOn.value) {
+    cancelAnimationFrame(blurRafId)
+    
+    // DAGDAG ITO: Gawing itim (black screen) ang canvas kapag pinatay ang camera
+    // Para hindi mag-freeze ang mukha mo sa screen ng kausap mo!
+    if (blurCanvasEl.value) {
+      const ctx = blurCanvasEl.value.getContext('2d');
+      ctx.fillStyle = '#3c4043'; // Dark gray/black
+      ctx.fillRect(0, 0, blurCanvasEl.value.width, blurCanvasEl.value.height);
+    }
+  } else {
+    updateEffects()
   }
   
-  logAction(cameraOn.value ? 'camera_turned_on' : 'camera_turned_off', { meeting_code: route.params.code })
-
-  // DAGDAG ITO: I-broadcast ang camera status mo
   if (dataConn.value?.open) {
     dataConn.value.send({ type: 'camera', on: cameraOn.value })
   }
@@ -1296,32 +1311,109 @@ function toggleCamera() {
 
 async function toggleScreenShare() {
   if (screenSharing.value) {
-    const sender = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'video')
-    if (sender && originalVideoTrack) sender.replaceTrack(originalVideoTrack)
+    // 1. REVERT VIDEO: Ibalik sa Camera ang video
+    const vidSender = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'video')
+    if (vidSender && originalVideoTrack) vidSender.replaceTrack(originalVideoTrack)
+
+    // 2. REVERT AUDIO: Ibalik sa pure Microphone lang ang audio (Tanggalin ang Screen Audio)
+    const audSender = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'audio')
+    const localAudioTrack = localStream?.getAudioTracks()[0];
+    if (audSender && localAudioTrack) audSender.replaceTrack(localAudioTrack)
+
+    // 3. Patayin ang Audio Mixer para hindi mag-memory leak
+    if (audioMixerCtx && audioMixerCtx.state !== 'closed') {
+      audioMixerCtx.close();
+      audioMixerCtx = null;
+    }
+
     if (screenVideoEl.value) screenVideoEl.value.srcObject = null
     screenStream = null
     screenSharing.value = false
+    if (dataConn.value?.open) dataConn.value.send({ type: 'screen_share', on: false })
     logAction('screen_share_stopped', { meeting_code: route.params.code })
     return
   }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    alert("Screen sharing is not supported on your current mobile browser. Please use a Desktop/Laptop.");
+    return;
+  }
+
   try {
-    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
-    const screenTrack = screenStream.getVideoTracks()[0]
-    const sender = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'video')
-    if (sender) sender.replaceTrack(screenTrack)
+    // Kuhanin ang Screen pati na ang System Audio
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+      video: true, 
+      audio: true 
+    })
+    const screenVideoTrack = screenStream.getVideoTracks()[0]
+    const screenAudioTrack = screenStream.getAudioTracks()[0]
+
+    // REPLACE VIDEO: Ipadala ang screen video sa PeerJS
+    const vidSender = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'video')
+    if (vidSender) vidSender.replaceTrack(screenVideoTrack)
+
+    // MIX AUDIO: Kung nag-share ng "System Audio" ang user (ex. tab audio)
+    if (screenAudioTrack) {
+      audioMixerCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const dest = audioMixerCtx.createMediaStreamDestination();
+
+      // Isaksak ang Microphone sa Mixer
+      const localAudioTrack = localStream?.getAudioTracks()[0];
+      if (localAudioTrack) {
+        const micSource = audioMixerCtx.createMediaStreamSource(new MediaStream([localAudioTrack]));
+        micSource.connect(dest);
+      }
+
+      // Isaksak ang Screen/YouTube Audio sa Mixer
+      const screenSource = audioMixerCtx.createMediaStreamSource(new MediaStream([screenAudioTrack]));
+      screenSource.connect(dest);
+
+      // Kunin ang Pinaghalong Audio (Mic + Screen)
+      const mixedAudioTrack = dest.stream.getAudioTracks()[0];
+
+      // Ipadala ang Pinaghalong Audio sa kausap!
+      const audSender = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'audio')
+      if (audSender) audSender.replaceTrack(mixedAudioTrack)
+
+      if (isRecording.value && typeof audioContext !== 'undefined' && audioContext && audioDestination) {
+        const recScreenSource = audioContext.createMediaStreamSource(new MediaStream([screenAudioTrack]));
+        recScreenSource.connect(audioDestination);
+        audioSources.push(recScreenSource);
+      }
+    }
+
     if (screenVideoEl.value) screenVideoEl.value.srcObject = screenStream
     screenSharing.value = true
+    if (dataConn.value?.open) dataConn.value.send({ type: 'screen_share', on: true })
     logAction('screen_share_started', { meeting_code: route.params.code })
 
-    screenTrack.onended = () => {
+    // Kapag pinindot ang "Stop sharing" sa popup bar ng browser
+    screenVideoTrack.onended = () => {
+      // Ibalik sa normal ang Video at Audio
       const s2 = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'video')
       if (s2 && originalVideoTrack) s2.replaceTrack(originalVideoTrack)
+
+      const a2 = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'audio')
+      const lAudio = localStream?.getAudioTracks()[0];
+      if (a2 && lAudio) a2.replaceTrack(lAudio)
+
+      if (audioMixerCtx && audioMixerCtx.state !== 'closed') {
+        audioMixerCtx.close();
+        audioMixerCtx = null;
+      }
+
       if (screenVideoEl.value) screenVideoEl.value.srcObject = null
       screenStream = null
       screenSharing.value = false
+      if (dataConn.value?.open) dataConn.value.send({ type: 'screen_share', on: false })
       logAction('screen_share_stopped', { meeting_code: route.params.code })
     }
-  } catch { /* user cancelled */ }
+  } catch (err) { 
+    // Kung hindi NotAllowedError (user cancelled), ibig sabihin may technical error ang browser
+    if (err.name !== 'NotAllowedError') {
+      alert("Error sharing screen: " + err.message);
+    }
+  }
 }
 
 async function toggleRecording() {
@@ -1547,7 +1639,9 @@ function admitGuest() {
   
   if (pendingCall.value) {
     currentCall.value = pendingCall.value;
-    pendingCall.value.answer(localStream); // Dito pa lang natin sasagutin yung tawag
+    const videoTrack = processedStream ? processedStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
+    const streamToAnswer = new MediaStream([videoTrack, ...localStream.getAudioTracks()]);
+    pendingCall.value.answer(streamToAnswer); // Dito pa lang natin sasagutin yung tawag
     logAction('peerjs_call_received', { meeting_code: route.params.code });
     
     currentCall.value.on('stream', (remote) => {
@@ -1825,6 +1919,10 @@ function stopAllMedia() {
   if (audioContext && audioContext.state !== 'closed') {
     audioContext.close();
   }
+
+  if (audioMixerCtx && audioMixerCtx.state !== 'closed') {
+    audioMixerCtx.close();
+  }
   
   if (pipWindow) {
       const pipLocal = pipWindow.document.getElementById('local-video');
@@ -2061,9 +2159,8 @@ onBeforeUnmount(() => {
 .content-area { flex: 1; position: relative; overflow: hidden; }
 .video-wrap { position: absolute; border-radius: 12px; overflow: hidden; background: #202124; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-sizing: border-box; }
 .wrap-hidden { display: none; }
-.local-pip { bottom: 24px; right: 24px; width: 280px; aspect-ratio: 16/9; z-index: 12; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15); }
-.remote-pip { bottom: 24px; right: 24px; width: 280px; aspect-ratio: 16/9; z-index: 11; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15); }
-.local-pip-cam { bottom: 195px; right: 24px; }
+.local-pip { bottom: 24px; right: 24px; width: 280px; aspect-ratio: 16/9; z-index: 12; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15); transition: opacity 0.3s; }
+.remote-pip { bottom: 24px; right: 24px; width: 280px; aspect-ratio: 16/9; z-index: 11; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15); transition: opacity 0.3s; }
 .local-solo, .remote-fill, .screen-fill {
   position: absolute;
   top: 70px;
@@ -2077,10 +2174,28 @@ onBeforeUnmount(() => {
   transition: all 0.4s ease-in-out;
 }
 
+.content-area:has(.screen-fill) .remote-pip {
+  display: none !important;
+}
+
+.content-area:has(.is-remote-screen) .local-pip {
+  display: none !important;
+}
+
 .local-solo { z-index: 5; }
 .remote-fill { z-index: 4; }
-.screen-fill { z-index: 3; background: #000; }
-.screen-fill .video-fill { object-fit: contain; }
+.screen-fill { 
+  z-index: 3; 
+  background: #000; 
+  display: flex; /* Idagdag ito para mag-center nang maayos */
+  align-items: center; 
+  justify-content: center; 
+}
+.screen-fill .video-fill { 
+  object-fit: contain !important; /* Force natin na contain palagi */
+  width: 100%; 
+  height: 100%; 
+}
 
 /* 2. SHRINK UP: Kapag in-open ang Emoji Picker */
 .content-area.with-emoji .local-solo,
@@ -2105,6 +2220,10 @@ onBeforeUnmount(() => {
 .video-fill { width: 100%; height: 100%; object-fit: cover; }
 .video-fill.mirrored { transform: scaleX(-1); }
 .video-fill.vid-hidden { opacity: 0; }
+.is-remote-screen {
+  object-fit: contain !important;
+  background: #000;
+}
 .tile-top-right { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; z-index: 10; }
 .tile-icon-btn { width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); cursor: pointer; }
 .mute-badge { background: #ea4335; }
@@ -2438,6 +2557,10 @@ input:checked + .slider:before { transform: translateX(18px); }
     left: 16px;
     right: 16px;
     bottom: 16px; /* Bigyan ng space yung controls sa ibaba */
+  }
+
+  .screen-fill .video-fill {
+    object-fit: contain !important;
   }
 
   /* 2. Kapag naka-open ang Chat, wag i-squish ang video sa mobile */
