@@ -72,15 +72,26 @@
 
           <div class="video-controls-overlay">
             <div class="center-controls">
-              <button class="round-btn" :class="{ 'btn-off': !micOn }" @click="toggleMic" :title="micOn ? 'Turn off microphone' : 'Turn on microphone'">
-                <svg v-if="micOn" viewBox="0 0 24 24" width="22" height="22" fill="white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+              
+              <button class="round-btn mic-btn-integrated" :class="{ 'btn-off': !micOn }" @click="toggleMic" :title="micOn ? 'Turn off microphone' : 'Turn on microphone'">
+                <svg v-if="micOn" viewBox="0 0 24 24" width="22" height="22">
+                  <defs>
+                    <mask id="micMask" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+                       <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="white" />
+                    </mask>
+                  </defs>
+                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="rgba(255,255,255,0.3)" />
+                  <rect x="0" :y="24 - (24 * (audioLevel / 100))" width="24" :height="(24 * (audioLevel / 100))" fill="#8ab4f8" mask="url(#micMask)" style="transition: all 0.08s ease-out;"/>
+                </svg>
                 <svg v-else viewBox="0 0 24 24" width="22" height="22" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
               </button>
+              
               <button class="round-btn" :class="{ 'btn-off': !cameraOn }" @click="toggleCamera" :title="cameraOn ? 'Turn off camera' : 'Turn on camera'">
                 <svg v-if="cameraOn" viewBox="0 0 24 24" width="22" height="22" fill="white"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
                 <svg v-else viewBox="0 0 24 24" width="22" height="22" fill="white"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/><line x1="2" y1="2" x2="22" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
               </button>
             </div>
+            
             <div class="right-controls">
               <button class="sparkle-btn" @click="showEffectsPanel = true" title="Apply visual effects">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
@@ -93,7 +104,6 @@
       </div>
 
       <div class="right-section">
-        
         <div v-if="!showEffectsPanel" class="join-card">
           <h2 class="join-title">Ready to join?</h2>
           <p class="join-code">{{ route.params.code }}</p>
@@ -194,6 +204,13 @@ const SelfieSegmentation = window.SelfieSegmentation;
 const router = useRouter()
 const route = useRoute()
 
+// Audio Meter States
+const audioLevel = ref(0);
+let audioContext = null;
+let analyser = null;
+let microphone = null;
+let audioRaf = null;
+
 // UI States
 const micOn = ref(true)
 const cameraOn = ref(true)
@@ -279,7 +296,8 @@ onMounted(async () => {
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
     })
     
-    isCamStarting.value = false; // <-- TANGGALIN ANG LOADING PAGKATAPOS MAG-ALLOW
+    isCamStarting.value = false;
+    startAudioMeter(localStream); 
 
     if (rawVideoEl.value) {
       rawVideoEl.value.srcObject = localStream;
@@ -302,7 +320,7 @@ onMounted(async () => {
     console.error("No camera/mic access", err)
     cameraOn.value = false
     micOn.value = false
-    isCamStarting.value = false; // <-- TANGGALIN DIN ANG LOADING KUNG NA-DENY
+    isCamStarting.value = false; 
   }
 })
 
@@ -331,7 +349,6 @@ function toggleCamera() {
   }
 }
 
-// FIX: ITO ANG PIPIGIL SA WHITE SCREEN BUG
 function joinMeeting() {
   isJoining.value = true; 
   
@@ -339,7 +356,6 @@ function joinMeeting() {
   sessionStorage.setItem('cameraOn', cameraOn.value)
   sessionStorage.setItem('prejoined_' + route.params.code, 'true')
   
-  // DAGDAG ITO: I-save ang lahat ng napiling effects bago tumawid!
   sessionStorage.setItem('activeEffect', activeEffect.value)
   sessionStorage.setItem('touchUpOn', touchUpOn.value)
   sessionStorage.setItem('lightingOn', lightingOn.value)
@@ -356,6 +372,12 @@ function joinMeeting() {
     if (selfieSegmentation) {
       selfieSegmentation.close();
     }
+
+    cancelAnimationFrame(audioRaf);
+    if (audioContext && audioContext.state !== 'closed') {
+      audioContext.close();
+    }
+
     router.push(`/meeting/${route.params.code}`)
   }, 500); 
 }
@@ -387,12 +409,9 @@ async function updateEffects() {
   if (!cameraOn.value) return;
 
   const hasBgEffect = activeEffect.value !== 'none';
-  const hasAppearance = touchUpOn.value || lightingOn.value || framingOn.value;
 
-  // 1. Itigil ang anumang umiikot na loop ngayon
   cancelAnimationFrame(blurRafId); 
 
-  // 2. Kung AI Background ang napili, i-load muna ang AI nang tahimik (Anti-Blink Fix)
   if (hasBgEffect && !selfieSegmentation) {
     isAiLoading.value = true;
     selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
@@ -402,7 +421,6 @@ async function updateEffects() {
     isAiLoading.value = false;
   }
 
-  // 3. Simulan ang tamang drawing loop
   if (hasBgEffect) {
     processBlurFrame(); 
   } else {
@@ -484,7 +502,7 @@ function onBlurResults(results) {
   if (activeEffect.value === 'blur-light') {
     ctx.filter = 'blur(8px)'; 
     ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-  } else if (activeEffect.value === 'blur-heavy' || activeEffect.value === 'blur') { // Suportado parehas na files
+  } else if (activeEffect.value === 'blur-heavy' || activeEffect.value === 'blur') { 
     ctx.filter = 'blur(24px)'; 
     ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
   } else if (customBgImage.complete && customBgImage.src) {
@@ -497,9 +515,54 @@ function onBlurResults(results) {
 
   ctx.restore();
 }
+
+// Function para basahin ang boses mula sa Mic
+function startAudioMeter(stream) {
+  if (!stream || stream.getAudioTracks().length === 0) return;
+  
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioContext.createAnalyser();
+  analyser.fftSize = 256;
+  
+  microphone = audioContext.createMediaStreamSource(stream);
+  microphone.connect(analyser);
+
+  const dataArray = new Uint8Array(analyser.frequencyBinCount);
+  
+  const updateMeter = () => {
+    if (!micOn.value) {
+      audioLevel.value = 0;
+      audioRaf = requestAnimationFrame(updateMeter);
+      return;
+    }
+    
+    analyser.getByteFrequencyData(dataArray);
+    let sum = 0;
+    for(let i = 0; i < dataArray.length; i++) {
+      sum += dataArray[i];
+    }
+    let average = sum / dataArray.length;
+    
+    // I-convert ang average volume (0-128) para maging 0% hanggang 100% height
+    audioLevel.value = Math.min(100, Math.max(0, (average / 80) * 100)); 
+    
+    audioRaf = requestAnimationFrame(updateMeter);
+  };
+  
+  updateMeter();
+}
 </script>
 
 <style scoped>
+.center-controls { position: relative; } 
+
+/* DAGDAG: Siguraduhing pantay ang padding para sa mic button */
+.mic-btn-integrated {
+  padding: 0; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .btn-join.joining {
   display: flex; 
