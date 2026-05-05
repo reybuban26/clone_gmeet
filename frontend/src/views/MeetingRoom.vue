@@ -1,5 +1,5 @@
 <template>
-  <div class="room" @click="closeAll">
+  <div class="room" @click="closeAll" @mousemove="onDragMove" @touchmove.passive="onDragMove" @mouseup="onDragEnd" @touchend="onDragEnd">
 
   <video ref="rawVideoEl" autoplay playsinline muted class="hidden-ai-element"></video>
   <canvas ref="blurCanvasEl" width="640" height="480" class="hidden-ai-element"></canvas>
@@ -13,83 +13,79 @@
       </Transition>
     </div>
 
-    <div class="content-area" :class="{ 'with-emoji': showEmojiPicker, 'with-panel': activePanel }">
-      <div class="video-wrap" :class="remoteClass">
-        <video ref="remoteVideoEl" autoplay playsinline class="video-fill" :class="{ 'vid-hidden': !remoteCameraOn, 'is-remote-screen': remoteScreenSharing }"></video>
-        <div v-if="!remoteCameraOn" class="tile-avatar">
-          <div class="tile-avatar-circle" :style="{ backgroundColor: remoteAvatarColor }">
-            <svg viewBox="0 0 24 24" width="50%" height="50%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-          </div>
-        </div>
-
-        <div class="tile-top-right">
-          <div v-if="remoteConnected && !remoteMicOn" class="tile-icon-btn mute-badge">
-             <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
-          </div>
-        </div>
-        <div class="tile-bottom-left">
-          <div v-if="remoteHandRaised" class="hand-indicator">✋</div>
-          <div v-if="remoteConnected" class="tile-name" style="display:flex; align-items:center; gap:6px;">
-             {{ isHost ? 'Guest' : 'Host' }}
-             <svg viewBox="0 -2 20 20" width="16" height="16">
-               <g transform="translate(-4, -3521)">
-                 <path d="M11.9795939,3535.00003 C11.9795939,3536.00002 12.8837256,3537 14,3537 C15.1162744,3537 16.0204061,3536.00002 16.0204061,3535.00003 C16.0204061,3532.00008 11.9795939,3532.00008 11.9795939,3535.00003 M9.71370846,3530.7571 L11.1431458,3532.17208 C12.7180523,3530.6121 15.2819477,3530.6121 16.8568542,3532.17208 L18.2862915,3530.7571 C15.9183756,3528.41413 12.0816244,3528.41413 9.71370846,3530.7571 M4,3525.10019 L5.42842711,3526.51516 C10.1551672,3521.83624 17.8448328,3521.83624 22.5715729,3526.51516 L24,3525.10019 C18.4772199,3519.63327 9.52278008,3519.63327 4,3525.10019 M21.1431458,3527.92914 L19.7147187,3529.34312 C16.5638953,3526.22417 11.4361047,3526.22417 8.28528134,3529.34312 L6.85685423,3527.92914 C10.8016971,3524.0242 17.1983029,3524.0242 21.1431458,3527.92914" fill="rgba(255,255,255,0.3)"/>
-                 
-                 <path v-if="networkQuality === 'good'" d="M11.9795939,3535.00003 C11.9795939,3536.00002 12.8837256,3537 14,3537 C15.1162744,3537 16.0204061,3536.00002 16.0204061,3535.00003 C16.0204061,3532.00008 11.9795939,3532.00008 11.9795939,3535.00003 M9.71370846,3530.7571 L11.1431458,3532.17208 C12.7180523,3530.6121 15.2819477,3530.6121 16.8568542,3532.17208 L18.2862915,3530.7571 C15.9183756,3528.41413 12.0816244,3528.41413 9.71370846,3530.7571 M4,3525.10019 L5.42842711,3526.51516 C10.1551672,3521.83624 17.8448328,3521.83624 22.5715729,3526.51516 L24,3525.10019 C18.4772199,3519.63327 9.52278008,3519.63327 4,3525.10019 M21.1431458,3527.92914 L19.7147187,3529.34312 C16.5638953,3526.22417 11.4361047,3526.22417 8.28528134,3529.34312 L6.85685423,3527.92914 C10.8016971,3524.0242 17.1983029,3524.0242 21.1431458,3527.92914" fill="#34a853"/>
-                 
-                 <path v-else-if="networkQuality === 'fair'" d="M11.9795939,3535.00003 C11.9795939,3536.00002 12.8837256,3537 14,3537 C15.1162744,3537 16.0204061,3536.00002 16.0204061,3535.00003 C16.0204061,3532.00008 11.9795939,3532.00008 11.9795939,3535.00003 M9.71370846,3530.7571 L11.1431458,3532.17208 C12.7180523,3530.6121 15.2819477,3530.6121 16.8568542,3532.17208 L18.2862915,3530.7571 C15.9183756,3528.41413 12.0816244,3528.41413 9.71370846,3530.7571 M21.1431458,3527.92914 L19.7147187,3529.34312 C16.5638953,3526.22417 11.4361047,3526.22417 8.28528134,3529.34312 L6.85685423,3527.92914 C10.8016971,3524.0242 17.1983029,3524.0242 21.1431458,3527.92914" fill="#fbbc04"/>
-                 
-                 <path v-else-if="networkQuality === 'poor'" d="M11.9795939,3535.00003 C11.9795939,3536.00002 12.8837256,3537 14,3537 C15.1162744,3537 16.0204061,3536.00002 16.0204061,3535.00003 C16.0204061,3532.00008 11.9795939,3532.00008 11.9795939,3535.00003 M9.71370846,3530.7571 L11.1431458,3532.17208 C12.7180523,3530.6121 15.2819477,3530.6121 16.8568542,3532.17208 L18.2862915,3530.7571 C15.9183756,3528.41413 12.0816244,3528.41413 9.71370846,3530.7571" fill="#ea4335"/>
-               </g>
-             </svg>
-          </div>
-        </div>
-      </div>
-
-      <div class="video-wrap" :class="screenClass">
-        <video ref="screenVideoEl" autoplay playsinline muted class="video-fill"></video>
-        <div class="screen-presenter-bar">
+    <div class="content-area grid-container" :class="{ 'with-emoji': showEmojiPicker, 'with-panel': activePanel, 'has-screen-share': screenSharing || remoteScreenSharing, ['mode-' + layoutMode]: true }">
+      <div v-show="screenSharing || remoteScreenSharing" class="screen-share-wrap">
+        <video ref="screenVideoEl" autoplay playsinline muted class="video-fill" :class="{ 'is-remote-screen': remoteScreenSharing }"></video>
+        <div v-if="screenSharing" class="screen-presenter-bar">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
           You are presenting
         </div>
       </div>
 
-      <div 
-        ref="pipElRef"
-        class="video-wrap" 
-        :class="localClass"
-        @touchstart="onDragStart"
-        @touchmove="onDragMove"
-        @touchend="onDragEnd"
-      >
-        <video ref="localVideoEl" autoplay muted playsinline class="video-fill mirrored" :class="{ 'vid-hidden': !cameraOn }"></video>
-        <div v-if="!cameraOn && !screenSharing" class="tile-avatar">
-          <div class="tile-avatar-circle">
-            <svg viewBox="0 0 24 24" width="50%" height="50%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+      <div class="participants-grid" :class="['layout-' + layoutMode]">
+        
+        <div class="video-wrap grid-item local-camera" :class="{ 'speaking-border': isLocalSpeaking }" ref="pipElRef" @mousedown="onDragStart" @touchstart.passive="onDragStart">
+          <video ref="localVideoEl" autoplay muted playsinline class="video-fill mirrored" :class="{ 'vid-hidden': !cameraOn }"></video>
+          
+          <div v-if="!cameraOn" class="tile-avatar">
+            <div class="tile-avatar-circle">
+              <svg viewBox="0 0 24 24" width="50%" height="50%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+            </div>
+          </div>
+          
+          <div class="tile-top-right">
+            <div class="tile-icon-btn" :title="'Network: ' + networkQuality">
+              <svg viewBox="0 0 24 24" width="16" height="16" :fill="networkQuality === 'poor' ? '#ea4335' : (networkQuality === 'fair' ? '#fbbc04' : '#fff')">
+                <path d="M12.01 21.49L23.64 7c-.45-.34-4.93-4-11.64-4C5.28 3 .81 6.66.36 7l11.63 14.49.01.01.01-.01z"/>
+              </svg>
+            </div>
+
+            <div v-if="!micOn" class="tile-icon-btn mute-badge urgent">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+            </div>
+            <div v-else-if="isLocalSpeaking" class="tile-icon-btn speaking-badge">
+              <div class="mini-wave">
+                <span class="mini-bar"></span>
+                <span class="mini-bar"></span>
+                <span class="mini-bar"></span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="tile-bottom-left">
+            <div v-if="handRaised" class="hand-indicator">✋</div>
+            <div class="tile-name">{{ isHost ? 'Host (You)' : 'Guest (You)' }}</div>
           </div>
         </div>
-        <div class="tile-top-right">
-          <div v-if="!micOn" class="tile-icon-btn mute-badge urgent">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+
+        <div v-for="peer in sortedParticipants" :key="peer.peerId" class="video-wrap grid-item remote-camera" :class="{ 'speaking-border': peer.isSpeaking }">
+          <video :id="'vid-' + peer.peerId" autoplay playsinline class="video-fill" :class="{ 'vid-hidden': !peer.cameraOn }"></video>
+          
+          <div v-if="!peer.cameraOn" class="tile-avatar">
+            <div class="tile-avatar-circle" :style="{ backgroundColor: peer.avatarColor }">
+              <svg viewBox="0 0 24 24" width="50%" height="50%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+            </div>
+          </div>
+          
+          <div class="tile-top-right">
+            <div v-if="!peer.micOn" class="tile-icon-btn mute-badge">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+            </div>
+            <div v-else-if="peer.isSpeaking" class="tile-icon-btn speaking-badge">
+              <div class="mini-wave">
+                <span class="mini-bar"></span>
+                <span class="mini-bar"></span>
+                <span class="mini-bar"></span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="tile-bottom-left">
+            <div v-if="peer.handRaised" class="hand-indicator">✋</div>
+            <div class="tile-name">{{ peer.name || 'Guest' }}</div>
           </div>
         </div>
-        <div class="tile-bottom-left">
-          <div v-if="handRaised" class="hand-indicator">✋</div>
-          <div class="tile-name" style="display:flex; align-items:center; gap:6px;">
-             {{ isHost ? 'Host (You)' : 'Guest (You)' }}
-             <svg viewBox="0 -2 20 20" width="16" height="16">
-               <g transform="translate(-4, -3521)">
-                 <path d="M11.9795939,3535.00003 C11.9795939,3536.00002 12.8837256,3537 14,3537 C15.1162744,3537 16.0204061,3536.00002 16.0204061,3535.00003 C16.0204061,3532.00008 11.9795939,3532.00008 11.9795939,3535.00003 M9.71370846,3530.7571 L11.1431458,3532.17208 C12.7180523,3530.6121 15.2819477,3530.6121 16.8568542,3532.17208 L18.2862915,3530.7571 C15.9183756,3528.41413 12.0816244,3528.41413 9.71370846,3530.7571 M4,3525.10019 L5.42842711,3526.51516 C10.1551672,3521.83624 17.8448328,3521.83624 22.5715729,3526.51516 L24,3525.10019 C18.4772199,3519.63327 9.52278008,3519.63327 4,3525.10019 M21.1431458,3527.92914 L19.7147187,3529.34312 C16.5638953,3526.22417 11.4361047,3526.22417 8.28528134,3529.34312 L6.85685423,3527.92914 C10.8016971,3524.0242 17.1983029,3524.0242 21.1431458,3527.92914" fill="rgba(255,255,255,0.3)"/>
-                 
-                 <path v-if="networkQuality === 'good'" d="M11.9795939,3535.00003 C11.9795939,3536.00002 12.8837256,3537 14,3537 C15.1162744,3537 16.0204061,3536.00002 16.0204061,3535.00003 C16.0204061,3532.00008 11.9795939,3532.00008 11.9795939,3535.00003 M9.71370846,3530.7571 L11.1431458,3532.17208 C12.7180523,3530.6121 15.2819477,3530.6121 16.8568542,3532.17208 L18.2862915,3530.7571 C15.9183756,3528.41413 12.0816244,3528.41413 9.71370846,3530.7571 M4,3525.10019 L5.42842711,3526.51516 C10.1551672,3521.83624 17.8448328,3521.83624 22.5715729,3526.51516 L24,3525.10019 C18.4772199,3519.63327 9.52278008,3519.63327 4,3525.10019 M21.1431458,3527.92914 L19.7147187,3529.34312 C16.5638953,3526.22417 11.4361047,3526.22417 8.28528134,3529.34312 L6.85685423,3527.92914 C10.8016971,3524.0242 17.1983029,3524.0242 21.1431458,3527.92914" fill="#34a853"/>
-                 
-                 <path v-else-if="networkQuality === 'fair'" d="M11.9795939,3535.00003 C11.9795939,3536.00002 12.8837256,3537 14,3537 C15.1162744,3537 16.0204061,3536.00002 16.0204061,3535.00003 C16.0204061,3532.00008 11.9795939,3532.00008 11.9795939,3535.00003 M9.71370846,3530.7571 L11.1431458,3532.17208 C12.7180523,3530.6121 15.2819477,3530.6121 16.8568542,3532.17208 L18.2862915,3530.7571 C15.9183756,3528.41413 12.0816244,3528.41413 9.71370846,3530.7571 M21.1431458,3527.92914 L19.7147187,3529.34312 C16.5638953,3526.22417 11.4361047,3526.22417 8.28528134,3529.34312 L6.85685423,3527.92914 C10.8016971,3524.0242 17.1983029,3524.0242 21.1431458,3527.92914" fill="#fbbc04"/>
-                 
-                 <path v-else-if="networkQuality === 'poor'" d="M11.9795939,3535.00003 C11.9795939,3536.00002 12.8837256,3537 14,3537 C15.1162744,3537 16.0204061,3536.00002 16.0204061,3535.00003 C16.0204061,3532.00008 11.9795939,3532.00008 11.9795939,3535.00003 M9.71370846,3530.7571 L11.1431458,3532.17208 C12.7180523,3530.6121 15.2819477,3530.6121 16.8568542,3532.17208 L18.2862915,3530.7571 C15.9183756,3528.41413 12.0816244,3528.41413 9.71370846,3530.7571" fill="#ea4335"/>
-               </g>
-             </svg>
-          </div>
-        </div>
+
       </div>
     </div>
 
@@ -136,6 +132,25 @@
 
     <Transition name="slide-panel">
       <div v-if="activePanel" class="side-panel" @click.stop>
+        <template v-if="activePanel === 'info'">
+          <div class="panel-header">
+            <h3>Meeting details</h3>
+            <button class="panel-close" @click="activePanel = null">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+          </div>
+          <div class="info-panel-body">
+            <h4 class="info-section-title">Joining info</h4>
+            <div class="info-link-text">{{ meetingLink }}</div>
+            <button class="btn-copy-info" @click="copyLink">
+              <svg v-if="!copied" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="#1a73e8"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              {{ copied ? 'Copied meeting link' : 'Copy joining info' }}
+            </button>
+            <div class="info-divider"></div>
+          </div>
+        </template>
+
         <template v-if="activePanel === 'chat'">
           <div class="panel-header">
             <h3>In-call messages</h3>
@@ -168,6 +183,7 @@
             <button class="chat-send" @click="sendMessage" :disabled="!messageInput.trim()"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
           </div>
         </template>
+
         <template v-if="activePanel === 'people'">
           <div class="panel-header">
             <h3>People</h3>
@@ -316,7 +332,8 @@
                <svg viewBox="0 0 24 24" width="48" height="48" fill="#ea4335"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
             </div>
             <h2 class="waiting-title">You can't join this call</h2>
-            <p class="waiting-desc">The host has locked the meeting and is not accepting new guests.</p>
+            <p v-if="rejectedReason === 'locked'" class="waiting-desc">The host has locked the meeting and is not accepting new guests.</p>
+            <p v-else class="waiting-desc">The host denied your request to join the meeting.</p>
             <button class="btn-return" @click="stopAllMedia(); router.push('/')">Return to home screen</button>
           </template>
         </div>
@@ -332,9 +349,19 @@
       </div>
 
       <div class="controls-center" @click.stop>
-        <button class="ctrl-btn" :class="{ off: !micOn }" @click="toggleMic" :title="micOn ? 'Turn off microphone' : 'Turn on microphone'">
-          <svg v-if="micOn" viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-          <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+        <button class="ctrl-btn mic-btn" :class="{ 'off': !micOn, 'is-on': micOn, 'is-speaking': isLocalSpeaking }" @click="toggleMic" :title="micOn ? 'Turn off microphone' : 'Turn on microphone'">
+          
+          <div v-if="micOn" class="mic-wave">
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+          </div>
+
+          <div class="mic-icon-circle">
+            <svg v-if="micOn" viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+            <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+          </div>
+          
         </button>
 
         <div class="ctrl-group" :class="{ off: !cameraOn }">
@@ -381,6 +408,10 @@
           </button>
           <Transition name="pop-center">
             <div v-if="showMoreDropdown" class="more-dropdown" @click.stop>
+              <button class="dropdown-item mobile-only-menu" @click="togglePanel('info'); showMoreDropdown = false">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                Meeting details
+              </button>
               <button class="dropdown-item mobile-only-menu" @click="togglePanel('people'); showMoreDropdown = false">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
                 People
@@ -417,6 +448,9 @@
       </div>
 
       <div class="bottom-right" @click.stop>
+        <button class="util-btn" :class="{ active: activePanel === 'info' }" @click.stop="togglePanel('info')" title="Meeting details">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+        </button>
         <button class="util-btn" :class="{ active: activePanel === 'people' }" @click.stop="togglePanel('people')" title="People">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
         </button>
@@ -598,11 +632,86 @@ const remoteAvatarColor = ref('#0f9d58')
 // DAGDAG ITO:
 const remoteScreenSharing = ref(false)
 
+const participants = ref([]) // Array para sa maraming guests
+const isLocalSpeaking = ref(false) // Trigger para sa blue border mo
+let localAudioAnalyser = null
+let localAudioDataArray = null
+let audioLoopId = null
+
+// COMPUTED: Laging ilagay sa una (top-left) kung sino ang nagsasalita
+const sortedParticipants = computed(() => {
+  return [...participants.value].sort((a, b) => {
+    // Kung nagsasalita si A pero si B hindi, mauna si A (-1)
+    if (a.isSpeaking && !b.isSpeaking) return -1;
+    if (!a.isSpeaking && b.isSpeaking) return 1;
+    return 0;
+  });
+});
+
+// COMPUTED: Alamin kung anong layout ang dapat gamitin
+const layoutMode = computed(() => {
+  // KAPAG MAY SCREEN SHARE:
+  if (screenSharing.value || remoteScreenSharing.value) {
+    if (participants.value.length > 0) return 'sidebar'; // May guest = Sidebar sa gilid
+    return 'share'; // Solo = Floating PiP over screen share
+  }
+  
+  // KAPAG WALANG SCREEN SHARE:
+  if (participants.value.length === 1) return 'pip'; // 1-on-1 = Floating PiP
+  return 'grid'; // Solo = Grid (full screen)
+});
+
+// ==========================================
+// AUDIO ANALYZER LOGIC (Para sa Blue Border)
+// ==========================================
+let peerAudioContexts = []; // Para madaling patayin kapag umalis
+
+function monitorAudioVolume(stream, participantObj, isLocal = false) {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    
+    const source = audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+    
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    const checkVolume = () => {
+      if (audioCtx.state === 'closed') return;
+      analyser.getByteFrequencyData(dataArray);
+      
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+      const average = sum / dataArray.length;
+      
+      const speaking = average > 15; // Threshold ng lakas ng boses
+      
+      if (isLocal) {
+        // Iilaw lang kung nagsasalita AT nakabukas ang mic
+        isLocalSpeaking.value = speaking && micOn.value; 
+      } else if (participantObj) {
+        participantObj.isSpeaking = speaking && participantObj.micOn;
+      }
+      
+      requestAnimationFrame(checkVolume);
+    };
+    
+    checkVolume();
+    if (!isLocal) peerAudioContexts.push(audioCtx);
+    return audioCtx;
+  } catch (err) {
+    console.warn("Audio analyzer error:", err);
+    return null;
+  }
+}
+
 const remoteConnected = ref(false)
 const peerError       = ref('')
 const isHost          = ref(false)
 const isLocked        = ref(false)
 const rejected        = ref(false)
+const rejectedReason = ref('');
 
 const showAdmitModal  = ref(false)
 const pendingCall     = ref(null)
@@ -1117,6 +1226,8 @@ onMounted(async () => {
     } // Paikutin agad ang Canvas kahit walang effect
     // === ANTI-BLINK FIX END ===
 
+    monitorAudioVolume(localStream, null, true);
+
   } catch {
     peerError.value = 'Could not access camera/microphone.'
     return
@@ -1155,7 +1266,7 @@ onMounted(async () => {
         // 1. Kapag LOCKED ang kwarto, sendan agad ng signal na REJECTED siya
         if (isLocked.value) {
           conn.on('open', () => {
-            conn.send({ type: 'rejected' });
+            conn.send({ type: 'rejected', reason: 'locked' }); // DAGDAG: reason
             setTimeout(() => conn.close(), 500);
           });
           return;
@@ -1204,18 +1315,45 @@ async function connectToHost(code, attempts = 0) {
     const call = peer.value.call(data.peer_id, streamToSend)
     
     currentCall.value = call
-    call.on('stream', (remote) => {
-      remoteConnected.value = true
-      rejected.value = false // DAGDAG: Na-accept na!
-      if (remoteVideoEl.value) remoteVideoEl.value.srcObject = remote
-      // Isama ang boses ni Host sa recording natin as guest
+    currentCall.value.on('stream', (remote) => {
+      remoteConnected.value = true;
+      rejected.value = false;
+
+      // ==========================================
+      // DAGDAG ITO: I-push sa Grid Array at i-set ang AI
+      // ==========================================
+      const newPeerId = currentCall.value.peer || Date.now().toString();
+      participants.value = [{
+        peerId: newPeerId,
+        name: isHost.value ? 'Guest' : 'Host',
+        avatarColor: remoteAvatarColor.value,
+        isSpeaking: false,
+        micOn: remoteMicOn.value,
+        cameraOn: remoteCameraOn.value,
+        handRaised: remoteHandRaised.value
+      }];
+      
+      // Simulan ang pakikinig sa boses ng guest
+      monitorAudioVolume(remote, participants.value[0], false);
+      
+      // I-attach ang video stream sa dynamic ID na ginawa ng v-for loop natin
+      nextTick(() => {
+        const vidEl = document.getElementById('vid-' + newPeerId);
+        if (vidEl) vidEl.srcObject = remote;
+      });
+      // ==========================================
+
       addRemoteStreamToMix(remote);
-    })
+      // (kung may startNetworkMonitor() sa loob ng admitGuest, panatilihin iyon dito)
+      if (isHost.value) startNetworkMonitor(); 
+    });
     call.on('close', () => { 
       if (!remoteConnected.value) {
         rejected.value = true;
       }
       remoteConnected.value = false 
+
+      participants.value = [];
     })
 
     const conn = peer.value.connect(data.peer_id)
@@ -1255,13 +1393,33 @@ function handleIncomingData(data) {
     const sender = isHost.value ? 'Guest' : 'Host'
     spawnEmoji(data.emoji, sender)
   } else if (data.type === 'hand') {
-    remoteHandRaised.value = data.raised
+    remoteHandRaised.value = data.raised;
+    if (participants.value.length) participants.value[0].handRaised = data.raised;
+    
   } else if (data.type === 'mic') {
-    remoteMicOn.value = data.on
+    remoteMicOn.value = data.on;
+    if (participants.value.length) participants.value[0].micOn = data.on;
+    
   } else if (data.type === 'camera') {
-    remoteCameraOn.value = data.on
+    remoteCameraOn.value = data.on;
+    if (participants.value.length) participants.value[0].cameraOn = data.on;
+
   } else if (data.type === 'screen_share') {
-    remoteScreenSharing.value = data.on
+    remoteScreenSharing.value = data.on;
+    
+    // DAGDAG ITO: Ilipat ang video stream sa malaking screen share box!
+    nextTick(() => {
+      if (data.on && screenVideoEl.value && participants.value.length > 0) {
+        // Kunin yung video ng kausap at i-play sa malaking screen
+        const remoteVid = document.getElementById('vid-' + participants.value[0].peerId);
+        if (remoteVid && remoteVid.srcObject) {
+          screenVideoEl.value.srcObject = remoteVid.srcObject;
+        }
+      } else if (!data.on && screenVideoEl.value && !screenSharing.value) {
+        screenVideoEl.value.srcObject = null;
+      }
+    });
+
   } else if (data.type === 'force_mute') {
     if (micOn.value) {
       toggleMic();
@@ -1269,6 +1427,7 @@ function handleIncomingData(data) {
     }
   } else if (data.type === 'rejected') {
     rejected.value = true;
+    rejectedReason.value = data.reason || 'locked';
   } else if (data.type === 'kick') {
     alert("You have been removed from the meeting by the host.");
     leaveCall();
@@ -1313,7 +1472,8 @@ async function toggleScreenShare() {
   if (screenSharing.value) {
     // 1. REVERT VIDEO: Ibalik sa Camera ang video
     const vidSender = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'video')
-    if (vidSender && originalVideoTrack) vidSender.replaceTrack(originalVideoTrack)
+    const videoTrackToRestore = processedStream ? processedStream.getVideoTracks()[0] : originalVideoTrack;
+    if (vidSender && videoTrackToRestore) vidSender.replaceTrack(videoTrackToRestore)
 
     // 2. REVERT AUDIO: Ibalik sa pure Microphone lang ang audio (Tanggalin ang Screen Audio)
     const audSender = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'audio')
@@ -1391,7 +1551,8 @@ async function toggleScreenShare() {
     screenVideoTrack.onended = () => {
       // Ibalik sa normal ang Video at Audio
       const s2 = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'video')
-      if (s2 && originalVideoTrack) s2.replaceTrack(originalVideoTrack)
+      const videoTrackToRestore = processedStream ? processedStream.getVideoTracks()[0] : originalVideoTrack;
+      if (s2 && videoTrackToRestore) s2.replaceTrack(videoTrackToRestore)
 
       const a2 = currentCall.value?.peerConnection?.getSenders().find(s => s.track?.kind === 'audio')
       const lAudio = localStream?.getAudioTracks()[0];
@@ -1639,7 +1800,13 @@ function admitGuest() {
   
   if (pendingCall.value) {
     currentCall.value = pendingCall.value;
-    const videoTrack = processedStream ? processedStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
+    
+    // FIX 1: I-check kung naka-screen share ka bago ipadala ang video sa guest!
+    let videoTrack = processedStream ? processedStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
+    if (screenSharing.value && screenStream) {
+      videoTrack = screenStream.getVideoTracks()[0]; // Ipadala ang screen imbes na camera
+    }
+    
     const streamToAnswer = new MediaStream([videoTrack, ...localStream.getAudioTracks()]);
     pendingCall.value.answer(streamToAnswer); // Dito pa lang natin sasagutin yung tawag
     logAction('peerjs_call_received', { meeting_code: route.params.code });
@@ -1647,15 +1814,33 @@ function admitGuest() {
     currentCall.value.on('stream', (remote) => {
       remoteConnected.value = true;
       rejected.value = false;
-      if (remoteVideoEl.value) remoteVideoEl.value.srcObject = remote;
-      addRemoteStreamToMix(remote);
 
+      const newPeerId = currentCall.value.peer || Date.now().toString();
+      participants.value = [{
+        peerId: newPeerId,
+        name: isHost.value ? 'Guest' : 'Host',
+        avatarColor: remoteAvatarColor.value,
+        isSpeaking: false,
+        micOn: remoteMicOn.value,
+        cameraOn: remoteCameraOn.value,
+        handRaised: remoteHandRaised.value
+      }];
+      
+      monitorAudioVolume(remote, participants.value[0], false);
+      
+      nextTick(() => {
+        const vidEl = document.getElementById('vid-' + newPeerId);
+        if (vidEl) vidEl.srcObject = remote;
+      });
+
+      addRemoteStreamToMix(remote);
       startNetworkMonitor();
     });
     
     currentCall.value.on('close', () => { 
       if (!remoteConnected.value) rejected.value = true;
       remoteConnected.value = false; 
+      participants.value = []; 
     });
     
     pendingCall.value = null;
@@ -1664,6 +1849,16 @@ function admitGuest() {
   if (pendingConn.value) {
     dataConn.value = pendingConn.value;
     dataConn.value.on('data', handleIncomingData);
+    
+    // FIX 2: Ipadala agad ang current status mo (Screen Share, Mic, Camera) sa bagong pasok na guest!
+    setTimeout(() => {
+      if (dataConn.value?.open) {
+        dataConn.value.send({ type: 'screen_share', on: screenSharing.value });
+        dataConn.value.send({ type: 'mic', on: micOn.value });
+        dataConn.value.send({ type: 'camera', on: cameraOn.value });
+      }
+    }, 800);
+
     pendingConn.value = null;
   }
 }
@@ -1676,7 +1871,7 @@ function denyGuest() {
   }
   if (pendingConn.value) {
     // DAGDAG ITO: Sabihan yung Guest na na-deny siya!
-    pendingConn.value.send({ type: 'rejected' });
+    pendingConn.value.send({ type: 'rejected', reason: 'denied' }); // DAGDAG: reason
     setTimeout(() => {
       pendingConn.value.close();
       pendingConn.value = null;
@@ -1886,7 +2081,13 @@ async function leaveCall() {
   router.push(`/meeting/${code}/left`)
 
   logAction('user_left_call_completed', { meeting_code: code }).catch(() => {})
-  axios.patch(`${API_URL}/api/meetings/${code}/end`).catch(() => {})
+  
+  // FIX: I-check muna kung HOST ang umaalis. 
+  // Kung HOST siya, i-eend ang meeting sa database. 
+  // Kung GUEST lang siya, hindi papansinin ang code na ito kaya buhay pa rin ang room!
+  if (isHost.value) {
+    axios.patch(`${API_URL}/api/meetings/${code}/end`).catch(() => {})
+  }
 
   currentCall.value?.close()
   dataConn.value?.close()
@@ -1895,7 +2096,6 @@ async function leaveCall() {
   clearInterval(networkInterval)
 
   sessionStorage.setItem('wasHost', sessionStorage.getItem('isHost') ?? 'false')
-  // DAGDAG ITO: Sinama natin ang 'prejoined_' sa mga buburahin
   ;['isHost', 'meetingCode', 'micOn', 'cameraOn', 'prejoined_' + code].forEach(k => sessionStorage.removeItem(k))
 }
 
@@ -2088,7 +2288,75 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* .. Yung existing styles mo same pa rin ..*/
+/* ========================
+   DYNAMIC MIC BUTTON (Google Meet Style)
+   ======================== */
+.ctrl-btn.mic-btn {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), background 0.2s;
+}
+
+/* Lalapad siya (Pill-shape) kapag ON ang mic, kahit di nagsasalita */
+.ctrl-btn.mic-btn.is-on {
+  width: 86px;
+  border-radius: 24px;
+  background: #3c4043;
+}
+
+/* Ang bilog na naglalaman ng mismong Mic Icon */
+.mic-icon-circle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s;
+}
+
+/* Mas light ang background ng bilog kapag naka-ON */
+.ctrl-btn.mic-btn.is-on .mic-icon-circle {
+  background: #4a4e51; 
+}
+
+/* Container ng sound waves (Nasa kaliwa) */
+.mic-wave {
+  position: absolute;
+  left: 14px;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Kapag TAHIMIK: tatlong maliit na tuldok (dots) */
+.mic-wave .wave-bar {
+  width: 4px;
+  height: 4px;
+  background: #8ab4f8; /* Kulay asul */
+  border-radius: 4px;
+  transition: height 0.2s ease;
+}
+
+/* Kapag NAGSASALITA: Gagalaw at hahaba ang mga tuldok */
+.ctrl-btn.mic-btn.is-speaking .wave-bar {
+  animation: bounce-wave 0.5s infinite alternate ease-in-out;
+}
+.ctrl-btn.mic-btn.is-speaking .wave-bar:nth-child(1) { height: 10px; animation-delay: 0s; }
+.ctrl-btn.mic-btn.is-speaking .wave-bar:nth-child(2) { height: 16px; animation-delay: 0.15s; }
+.ctrl-btn.mic-btn.is-speaking .wave-bar:nth-child(3) { height: 12px; animation-delay: 0.3s; }
+
+@keyframes bounce-wave {
+  0% { transform: scaleY(0.5); opacity: 0.6; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
 
 /* ========================
    SPLIT BUTTONS & EFFECTS MENU
@@ -2157,30 +2425,255 @@ onBeforeUnmount(() => {
 .hand-top-badge { display: flex; align-items: center; gap: 6px; background: #34a853; color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; }
 /* Tinanggal na yung .avatar-circle dito */
 .content-area { flex: 1; position: relative; overflow: hidden; }
-.video-wrap { position: absolute; border-radius: 12px; overflow: hidden; background: #202124; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-sizing: border-box; }
+.video-wrap { position: relative; border-radius: 12px; overflow: hidden; background: #202124; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-sizing: border-box; }
 .wrap-hidden { display: none; }
-.local-pip { bottom: 24px; right: 24px; width: 280px; aspect-ratio: 16/9; z-index: 12; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15); transition: opacity 0.3s; }
-.remote-pip { bottom: 24px; right: 24px; width: 280px; aspect-ratio: 16/9; z-index: 11; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15); transition: opacity 0.3s; }
-.local-solo, .remote-fill, .screen-fill {
+
+.grid-container {
+  display: flex;
+  padding: 16px;
+  padding-bottom: 16px; 
+  height: 100%;
+  box-sizing: border-box;
+  /* PERFECT SYNC: Set to 0.6s to match the side panel animation exactly */
+  transition: padding 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* SHRINK EFFECT KAPAG MAY CHAT/PANEL */
+.grid-container.with-panel {
+  padding-right: 390px; 
+}
+
+/* =======================================
+   ANIMATIONS PARA SA CHAT PANEL & EMOJI
+   ======================================= */
+
+/* 1. SHRINK UP: Kapag in-open ang Emoji Picker */
+.grid-container.with-emoji {
+  padding-bottom: 86px; 
+}
+.grid-container.with-emoji .participants-grid.layout-pip .remote-camera {
+  bottom: 86px;
+}
+.grid-container.with-emoji .participants-grid.layout-pip .local-camera {
+  bottom: 100px;
+}
+
+/* 2. SHRINK LEFT: Kapag in-open ang Chat/People Panel */
+.grid-container.with-panel .participants-grid.layout-pip .remote-camera {
+  right: 392px; 
+  left: 16px;
+}
+.grid-container.with-panel .participants-grid.layout-pip .local-camera {
+  right: 412px; 
+}
+
+/* 3. SHRINK UP + LEFT: Sabay na naka-open ang Chat at Emoji */
+.grid-container.with-panel.with-emoji .participants-grid.layout-pip .local-camera {
+  bottom: 100px;
+  right: 412px;
+}
+
+/* ANG GRID MISMO */
+.participants-grid {
+  flex: 1; 
+  display: grid;
+  gap: 16px;
+  /* FIX: Mula 320px, ginawa nating 240px. Hahayaan muna nitong lumiit ang mga camera bago ito mag-wrap o bumaba sa next line! */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-auto-rows: 1fr; /* Para laging pantay ang pag-hati nila ng height sa screen */
+  align-content: stretch;
+  justify-content: center;
+  height: 100%;
+  transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Kapag walang screen share, okupahin ang buong screen */
+.grid-container:not(.has-screen-share) .participants-grid {
+  flex: 100%;
+}
+
+/* Kapag may Screen Share, magiging isang linya (column) na lang ang mga camera sa gilid */
+.grid-sidebar .grid-item {
+  width: 100%;
+  height: 180px;
+  flex-shrink: 0;
+}
+
+/* INDIVIDUAL VIDEO TILES */
+.grid-item {
+  position: relative;
+  background: #3c4043;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  /* FIX: Mula 220px, binaba natin sa 120px ang minimum height para kayang lumiit ng video kapag napuno na ang screen */
+  min-height: 120px; 
+  max-height: 100%;
+  transition: box-shadow 0.2s, border 0.2s, all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 4px solid transparent;
+}
+
+/* ACTIVE SPEAKER BORDER! */
+.speaking-border {
+  border-color: #8ab4f8;
+  box-shadow: 0 0 16px rgba(138, 180, 248, 0.4);
+}
+.speaking-badge {
+  background: rgba(0,0,0,0.6); /* Gawing dark ang background para umangat ang blue waves */
+}
+
+/* ========================
+   MINI SOUND WAVES (Para sa Video Tiles)
+   ======================== */
+.mini-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 14px;
+}
+
+.mini-wave .mini-bar {
+  width: 3px;
+  background: #8ab4f8; /* Kulay asul na bars */
+  border-radius: 2px;
+  animation: mini-bounce 0.5s infinite alternate ease-in-out;
+}
+
+.mini-wave .mini-bar:nth-child(1) { height: 6px; animation-delay: 0s; }
+.mini-wave .mini-bar:nth-child(2) { height: 12px; animation-delay: 0.15s; }
+.mini-wave .mini-bar:nth-child(3) { height: 8px; animation-delay: 0.3s; }
+
+@keyframes mini-bounce {
+  0% { transform: scaleY(0.4); opacity: 0.7; }
+  100% { transform: scaleY(1.1); opacity: 1; }
+}
+
+/* ========================
+   SMART LAYOUT: PICTURE-IN-PICTURE (1-ON-1)
+   ======================== */
+.participants-grid.layout-pip {
+  display: block; /* Patayin ang Grid pansamantala */
+  width: 100%;
+  height: 100%;
+}
+
+.participants-grid.layout-pip .remote-camera {
   position: absolute;
-  top: 70px;
-  left: 150px;
-  right: 150px;
-  bottom: 50px;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
   width: auto;
   height: auto;
+  z-index: 4;
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.participants-grid.layout-pip .local-camera {
+  position: absolute;
+  bottom: 100px;
+  right: 170px;
+  width: 280px;
+  height: auto;
+  min-height: unset; 
+  max-height: unset; 
+  aspect-ratio: 16 / 9;
+  z-index: 12;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  border-width: 3px; 
+  /* FIX: 0.5s para sumabay! */
+  transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* ========================
+   SCREEN SHARE WRAPPER (Ang pinapanood na screen)
+   ======================== */
+.screen-share-wrap {
+  position: absolute;
+  top: 16px; left: 16px; right: 16px; bottom: 16px;
+  background: #000;
   border-radius: 12px;
-  background: #3c4043;
-  transition: all 0.4s ease-in-out;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+/* Siguraduhing contain at black bg */
+.screen-share-wrap .video-fill {
+  object-fit: contain !important;
+  background: #202124;
 }
 
-.content-area:has(.screen-fill) .remote-pip {
-  display: none !important;
+/* ========================
+   MODE-SHARE (SOLO + Nagpe-present)
+   ======================== */
+.grid-container.mode-share .participants-grid {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none; /* Para ma-click ang screen sa likod */
+  z-index: 10;
+  display: block; /* Patayin ang Grid layout dito */
+}
+.grid-container.mode-share .participants-grid .local-camera {
+  pointer-events: auto; /* Ibalik ang click sa mismong camera */
+  position: absolute;
+  width: 280px; height: auto; aspect-ratio: 16/9;
+  min-height: unset; max-height: unset;
+  bottom: 100px; right: 32px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  border-width: 3px; border-radius: 12px;
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.grid-container.with-panel.mode-share .participants-grid .local-camera {
+  right: 408px;
+}
+.grid-container.with-panel.mode-share .screen-share-wrap {
+  right: 392px;
 }
 
-.content-area:has(.is-remote-screen) .local-pip {
-  display: none !important;
+/* ========================
+   MODE-SIDEBAR (MAY GUEST + Nagpe-present)
+   ======================== */
+/* Paliitin ang Screen Share para bigyan ng space ang mga camera sa gilid */
+.grid-container.mode-sidebar .screen-share-wrap {
+  right: 312px; /* Space para sa 280px camera + margin */
 }
+
+/* I-ayos ang mga cameras sa kanang gilid (Vertical Column) */
+.grid-container.mode-sidebar .participants-grid {
+  position: absolute;
+  top: 16px; right: 16px; bottom: 16px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  z-index: 10;
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+/* Style ng bawat camera sa sidebar */
+.grid-container.mode-sidebar .participants-grid .grid-item {
+  width: 100%;
+  height: 180px; /* Fixed height para pantay */
+  min-height: unset; max-height: unset;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border-width: 3px; border-radius: 12px;
+  transition: all 0.4s;
+  flex-shrink: 0;
+}
+
+/* Kapag nagbukas ng chat, i-usog lahat (pati Sidebar at Screen) */
+.grid-container.with-panel.mode-sidebar .participants-grid {
+  right: 392px;
+}
+.grid-container.with-panel.mode-sidebar .screen-share-wrap {
+  right: 688px; /* 392 (chat) + 296 (sidebar + margin) */
+}
+
+/* IPALIT ITO: Kapag pinapanood ng Guest ang screen mo, itatago ang maliit mong camera para hindi madoble ang video mo sa screen niya */
+.content-area:has(.is-remote-screen) .remote-camera { display: none !important; }
 
 .local-solo { z-index: 5; }
 .remote-fill { z-index: 4; }
@@ -2258,9 +2751,9 @@ onBeforeUnmount(() => {
 /* BAGONG FLOATING PANEL (Google Meet Style) */
 .side-panel { 
   position: absolute; 
-  top: 70px; /* Binago: Pantay na ngayon sa taas ng video! */
+  top: 16px; /* Pantay sa itaas ng video! */
   right: 16px; 
-  bottom: 86px; 
+  bottom: 88px; /* Pantay sa ibaba ng video! */
   width: 360px; 
   background: #202124; 
   z-index: 25; 
@@ -2273,7 +2766,7 @@ onBeforeUnmount(() => {
 
 /* SMOOTH TRANSITION */
 .slide-panel-enter-active, .slide-panel-leave-active { 
-  transition: all 0.4s ease-in-out;
+  transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1); /* FIX: Pantay na ang bilis nila ng camera! */
 }
 .slide-panel-enter-from, .slide-panel-leave-to { 
   transform: translateX(400px); /* Galing sa kanan tapos papasok */
@@ -2387,7 +2880,7 @@ onBeforeUnmount(() => {
 .slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(20px); }
 .pop-enter-active, .pop-leave-active { transition: all .15s ease; }
 .pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(.88); }
-.pop-center-enter-active, .pop-center-leave-active { transition: all 0.4s ease-in-out; }
+.pop-center-enter-active, .pop-center-leave-active { transition: all 0.5s ease-in-out; }
 .pop-center-enter-from, .pop-center-leave-to { opacity: 0; transform: translateX(-50%) scale(.88); }
 
 /* Settings Modal UI */
@@ -2547,6 +3040,51 @@ input:checked + .slider:before { transform: translateX(18px); }
 .btn-deny { background: transparent; color: #1a73e8; border: none; padding: 10px 20px; border-radius: 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
 .btn-deny:hover { background: #f1f3f4; }
 
+/* ========================
+   MEETING DETAILS (INFO) PANEL
+   ======================== */
+.info-panel-body { 
+  padding: 20px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 16px; 
+}
+.info-section-title { 
+  font-size: 14px; 
+  font-weight: 500; 
+  color: #e8eaed; 
+  margin: 0; 
+}
+.info-link-text { 
+  font-size: 13px; 
+  color: #e8eaed; 
+  word-break: break-all; 
+  line-height: 1.4;
+}
+.btn-copy-info { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  background: transparent; 
+  border: none; 
+  color: #8ab4f8; 
+  font-size: 14px; 
+  font-weight: 500; 
+  cursor: pointer; 
+  padding: 0; 
+  transition: color 0.2s; 
+}
+.btn-copy-info:hover { color: #aecbfa; }
+.info-divider { 
+  height: 1px; 
+  background: #3c4043; 
+  margin: 8px 0; 
+}
+.info-attachments-text { 
+  font-size: 13px; 
+  color: #9aa0a6; 
+}
+
 /* ======================== */
 /*    MOBILE RESPONSIVE     */
 /* ======================== */
@@ -2651,6 +3189,93 @@ input:checked + .slider:before { transform: translateX(18px); }
   svg.spinner {
     animation: spin 1s linear infinite;
     transform-origin: center;
+  }
+}
+
+/* MOBILE FIX PARA SA PIP (Layout-PiP) */
+@media (max-width: 768px) {
+  /* ========================
+     MOBILE FIX PARA SA LAHAT NG LAYOUT MODES
+     ======================== */
+     
+  /* 1. NORMAL PIP (Kapag walang screen share, 1-on-1) */
+  .participants-grid.layout-pip .remote-camera {
+    top: 16px; left: 16px; right: 16px; bottom: 16px;
+  }
+  .participants-grid.layout-pip .local-camera {
+    position: absolute !important;
+    bottom: 30px !important;
+    right: 30px !important;
+    width: 120px !important;
+    height: 160px !important;
+    aspect-ratio: 3/4 !important; /* Portrait view sa mobile! */
+    z-index: 20 !important;
+  }
+
+  /* 2. MODE-SHARE (Kapag SOLO ka at nag-share ng screen) */
+  .grid-container.mode-share .screen-share-wrap {
+    right: 16px !important; /* Full width screen share */
+    top: 16px; bottom: 16px;
+  }
+  .grid-container.mode-share .participants-grid .local-camera {
+    position: absolute !important;
+    bottom: 100px !important;
+    right: 16px !important;
+    width: 100px !important;
+    height: 140px !important;
+    aspect-ratio: 3/4 !important;
+    z-index: 20 !important;
+  }
+
+  /* 3. MODE-SIDEBAR (May GUEST at may nagpe-present - KATULAD NG GMEET MOBILE!) */
+  .grid-container.mode-sidebar .screen-share-wrap {
+    right: 16px !important;
+    bottom: 172px !important; /* I-angat ang screen share para may space ang cameras sa ibaba */
+  }
+  .grid-container.mode-sidebar .participants-grid {
+    position: absolute !important;
+    top: auto !important;
+    bottom: 16px !important; 
+    left: 16px !important;
+    right: 16px !important;
+    height: 150px !important; /* Limitadong height para sa isang row lang ang kita agad */
+    
+    /* GAGAWING GRID PARA BUMABA ANG SUMUNOD NA GUESTS */
+    display: grid !important; 
+    grid-template-columns: repeat(2, 1fr) !important; /* Laging dalawa-dalawa (2 columns) */
+    grid-auto-rows: 140px !important; /* Fixed height ng bawat camera box */
+    gap: 8px !important;
+    overflow-y: auto !important; /* Scrollable pababa kapag sumobra na sa dalawa ang tao */
+    align-content: start !important;
+  }
+  
+  /* I-reset ang mga camera boxes para maging side-by-side sa ibaba */
+  .grid-container.mode-sidebar .participants-grid .grid-item,
+  .grid-container.mode-sidebar .participants-grid .local-camera,
+  .grid-container.mode-sidebar .participants-grid .remote-camera {
+    display: block !important; 
+    position: relative !important;
+    bottom: auto !important;
+    right: auto !important;
+    left: auto !important;
+    width: 100% !important; /* Hayaan na ang grid template mag-hati sa dalawa (1fr) */
+    height: 100% !important; 
+    aspect-ratio: auto !important;
+    z-index: 10 !important;
+  }
+
+  .participants-grid:not(.layout-pip) {
+    grid-template-columns: repeat(2, 1fr) !important; /* Force 2-columns sa mobile */
+    grid-auto-rows: minmax(160px, 1fr) !important; /* Awtomatikong mag-aadjust ang height ng camera */
+    overflow-y: auto !important;
+  }
+}
+
+/* Ayusin din ang lapad sa Mobile View kung mag-collapse ang layout */
+@media (max-width: 768px) {
+  .ctrl-btn.mic-btn.is-speaking {
+    width: 68px;
+    gap: 6px;
   }
 }
 
