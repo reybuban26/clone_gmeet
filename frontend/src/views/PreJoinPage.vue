@@ -95,9 +95,10 @@
           
           <div class="join-actions-wrapper">
             <div class="join-actions">
-              <button class="btn-join" :class="{'joining': isJoining}" @click="joinMeeting" :disabled="isJoining">
-                <template v-if="!isJoining">Join now</template>
-                <template v-else><div class="spinner-mini"></div> Joining...</template>
+              <button class="btn-join" :class="{'joining': isJoining || isCamStarting}" @click="joinMeeting" :disabled="isJoining || isCamStarting">
+                <template v-if="isCamStarting"><div class="spinner-mini"></div> Loading...</template>
+                <template v-else-if="isJoining"><div class="spinner-mini"></div> Joining...</template>
+                <template v-else>Join now</template>
               </button>
               <button class="btn-present" @click="presentMeeting">Present</button>
             </div>

@@ -119,19 +119,87 @@
       </div>
     </Transition>
 
-    <Transition name="slide-up">
-      <div v-if="showAdmitModal && isHost" class="admit-dialog">
-        <h3 class="dialog-title">Someone wants to join</h3>
-        <p class="dialog-desc">A guest is asking to join this meeting.</p>
-        <div class="admit-actions">
-          <button class="btn-deny" @click="denyGuest">Deny entry</button>
-          <button class="btn-admit" @click="admitGuest">Admit</button>
-        </div>
-      </div>
-    </Transition>
+    
 
     <Transition name="slide-panel">
       <div v-if="activePanel" class="side-panel" @click.stop>
+        <template v-if="activePanel === 'host'">
+          <div class="panel-header">
+            <h3>Host controls</h3>
+            <button class="panel-close" @click="activePanel = null">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+          </div>
+          <div class="host-panel-body">
+            <div class="host-info-card">
+              Use these host settings to keep control of your meeting. Only hosts have access to these controls.
+            </div>
+
+            <div class="host-controls-wrapper">
+              <div class="host-controls-header">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                Meeting safety
+              </div>
+              
+              <div class="host-control-item">
+                <div class="control-text">
+                  <strong>Lock meeting</strong>
+                  <small>Prevent new guests from joining the call</small>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" v-model="isLocked">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <div class="host-control-item" style="border-top: 1px solid rgba(26, 115, 232, 0.3);">
+                <div class="control-text">
+                  <strong>Send chat messages</strong>
+                  <small>Let everyone send messages in the chat</small>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" v-model="isChatEnabled">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <div class="host-control-item" style="border-top: 1px solid rgba(26, 115, 232, 0.3);">
+                <div class="control-text">
+                  <strong>Screen sharing</strong>
+                  <small>Let everyone share their screen</small>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" v-model="isShareScreenEnabled">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <div class="host-control-item" style="border-top: 1px solid rgba(26, 115, 232, 0.3);">
+                <div class="control-text">
+                  <strong>Turn on their microphone</strong>
+                  <small>Let everyone use their mic</small>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" v-model="isMicEnabled">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <div class="host-control-item" style="border-top: 1px solid rgba(26, 115, 232, 0.3);">
+                <div class="control-text">
+                  <strong>Turn on their video</strong>
+                  <small>Let everyone use their camera</small>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" v-model="isCameraEnabled">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+            </div>
+          </div>
+        </template>
+
         <template v-if="activePanel === 'info'">
           <div class="panel-header">
             <h3>Meeting details</h3>
@@ -175,12 +243,22 @@
           </div>
           <div class="chat-input-row">
             <input type="file" ref="fileInputEl" @change="handleFileUpload" style="display: none;" accept="image/*,.pdf,.doc,.docx,.txt" />
-            <button class="chat-attach" @click="$refs.fileInputEl.click()" title="Attach file">
+            
+            <button class="chat-attach" @click="$refs.fileInputEl.click()" title="Attach file" :disabled="!isHost && !isChatEnabled">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="#9aa0a6"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
             </button>
             
-            <input v-model="messageInput" class="chat-input" placeholder="Send a message" @keyup.enter="sendMessage" />
-            <button class="chat-send" @click="sendMessage" :disabled="!messageInput.trim()"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+            <input 
+              v-model="messageInput" 
+              class="chat-input" 
+              :placeholder="(!isHost && !isChatEnabled) ? 'Chat disabled by host' : 'Send a message'" 
+              @keyup.enter="sendMessage" 
+              :disabled="!isHost && !isChatEnabled" 
+            />
+            
+            <button class="chat-send" @click="sendMessage" :disabled="(!isHost && !isChatEnabled) || !messageInput.trim()">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
           </div>
         </template>
 
@@ -190,57 +268,202 @@
             <button class="panel-close" @click="activePanel = null"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
           </div>
           
-          <div v-if="isHost" class="host-controls">
-            <div class="host-controls-header">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="#1a73e8"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
-              <span>Host controls</span>
+          <div class="people-panel-body">
+            <div class="people-search">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="#9aa0a6"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 12.01 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 12.01 14 9.5 14z"/></svg>
+              <input type="text" placeholder="Search for people" />
             </div>
-            <div class="host-control-item">
-              <div class="control-text">
-                <strong>Lock Meeting</strong>
-                <small>Prevent new guests from joining</small>
+            <div v-if="waitingGuests.length > 0 && isHost" class="people-group-section">
+              <div class="pg-header">
+                <span>Waiting to be admitted</span>
+                <span>{{ waitingGuests.length }}</span>
               </div>
-              <label class="switch">
-                <input type="checkbox" v-model="isLocked">
-                <span class="slider round"></span>
-              </label>
+              <div class="pg-actions-top">
+                <button class="btn-text-blue" @click="admitAllGuests">Admit all</button>
+              </div>
+              <div class="participant-item" v-for="guest in waitingGuests" :key="guest.id">
+                <div class="participant-avatar"><svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg></div>
+                <div class="participant-name">{{ guest.name }}</div>
+                <div class="waiting-actions">
+                  <button class="btn-text-blue" @click="admitGuest(guest.id)">Admit</button>
+                  <div class="menu-wrap">
+                    <button class="action-btn" @click="showWaitingOptions = showWaitingOptions === guest.id ? null : guest.id">
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                    </button>
+                    <div class="context-dropdown" v-if="showWaitingOptions === guest.id">
+                      <button @click="denyGuest(guest.id)">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z"/></svg>
+                        Deny
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <p class="people-count-text">In call ({{ remoteConnected ? 2 : 1 }})</p>
-          
-          <div class="participant-list">
-            <div class="participant-item">
-              <div class="participant-avatar">
-                 <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-              </div>
-              <div class="participant-name">You ({{ isHost ? 'Host' : 'Guest' }})</div>
-              <div class="participant-status">
-                <svg v-if="!micOn" viewBox="0 0 24 24" width="16" height="16" fill="#ea4335"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
-              </div>
-            </div>
-
-            <div v-if="remoteConnected" class="participant-item">
-              <div class="participant-avatar" :style="{ backgroundColor: remoteAvatarColor }">
-                 <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-              </div>
-              <div class="participant-name">{{ isHost ? 'Guest' : 'Host' }}</div>
-              
-              <div v-if="isHost" class="host-actions">
-                <button class="action-btn" @click="forceMuteGuest" :disabled="!remoteMicOn" title="Mute participant">
-                  <svg viewBox="0 0 24 24" width="18" height="18" :fill="remoteMicOn ? '#e8eaed' : '#5f6368'"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-                </button>
-                <button class="action-btn remove-btn" @click="kickGuest" title="Remove from call">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="#ea4335"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
-                </button>
+            <div class="people-group-section">
+              <div class="pg-header">
+                <span>Contributors</span>
+                <span>{{ participants.length + 1 }}</span>
               </div>
               
-              <div v-else class="participant-status">
-                <svg v-if="!remoteMicOn" viewBox="0 0 24 24" width="16" height="16" fill="#ea4335"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+              <div class="participant-item">
+                <div class="participant-avatar host-avatar">
+                   <svg viewBox="0 0 24 24" width="60%" height="60%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                </div>
+                <div class="participant-name">
+                  <span>You</span>
+                  <span class="host-label">Meeting host</span>
+                </div>
+                <div class="waiting-actions">
+                  <div class="participant-status">
+                    <div class="people-mic-indicator" :class="{ 'speaking': micOn && isLocalSpeaking, 'muted': !micOn }">
+                        <div v-if="micOn" class="side-wave">
+                            <span class="s-bar"></span><span class="s-bar"></span><span class="s-bar"></span>
+                        </div>
+                        <div v-else class="muted-icon-wrapper">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+                        </div>
+                    </div>
+                  </div>
+
+                  <div class="menu-wrap">
+                    <button class="action-btn" @click="showPinMenu = !showPinMenu" v-html="SVG_3DOTS"></button>
+                    <div class="context-dropdown pin-dropdown" v-if="showPinMenu">
+                      
+                      <div class="submenu-container">
+                        <button class="submenu-trigger">
+                           <div style="display: flex; align-items: center; gap: 12px;">
+                             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                             <span>Pin to the screen</span>
+                           </div>
+                           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" class="arrow-right"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+                        </button>
+                        
+                        <div class="submenu-popup">
+                          <button>For myself only</button>
+                          <button>For everyone</button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-for="p in participants" :key="p.peerId" class="participant-item">
+                <div class="participant-avatar guest-avatar" :style="{ backgroundColor: p.avatarColor }">
+                   <svg viewBox="0 0 24 24" width="60%" height="60%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                </div>
+                <div class="participant-name">{{ p.name }}</div>
+                
+                <div class="waiting-actions">
+                  <div class="participant-status">
+                    <div class="people-mic-indicator" :class="{ 'speaking': p.micOn && p.isSpeaking, 'muted': !p.micOn }">
+                        <div v-if="p.micOn" class="side-wave">
+                            <span class="s-bar"></span><span class="s-bar"></span><span class="s-bar"></span>
+                        </div>
+                        <div v-else class="muted-icon-wrapper">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>
+                        </div>
+                    </div>
+                  </div>
+
+                  <div v-if="isHost" class="host-actions">
+                    <button class="action-btn" @click="forceMuteGuest" :disabled="!p.micOn" title="Mute participant">
+                      <svg viewBox="0 0 24 24" width="18" height="18" :fill="p.micOn ? '#e8eaed' : '#5f6368'"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                    </button>
+                    <button class="action-btn remove-btn" @click="kickGuest" title="Remove from call">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="#ea4335"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </template>
+
+        <template v-if="activePanel === 'activities'">
+          <div class="panel-header">
+            <h3>Activities</h3>
+            <button class="panel-close" @click="activePanel = null"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+          </div>
+          
+          <div class="activities-panel-body">
+            
+            <div v-if="!isCreatingPoll" class="polls-list-view">
+              <div class="act-header-row" v-if="isHost">
+                <div class="act-title"><span v-html="SVG_ACTIVITIES"></span> Polls</div>
+                <button class="btn-start-poll" @click="isCreatingPoll = true">Start a poll</button>
+              </div>
+              
+              <div v-if="polls.length === 0" class="no-activities">
+                 <img src="/empty-chat.png" alt="No polls" class="empty-chat-img" style="opacity: 0.5;" />
+                 <p>No active polls yet</p>
+              </div>
+              
+              <div v-for="poll in polls" :key="poll.id" class="poll-card">
+                <div class="poll-header-row">
+                  <div class="poll-q">{{ poll.question }}</div>
+                  <span v-if="poll.isEnded" class="poll-ended-badge">Ended</span>
+                </div>
+                
+                <div class="poll-opts">
+                  <div v-for="(opt, idx) in poll.options" :key="idx" class="poll-opt" 
+                       @click="!poll.isEnded && votePoll(poll.id, idx)" 
+                       :class="{ 'voted': poll.votedIndex === idx, 'disabled': poll.votedIndex !== null || poll.isEnded }">
+                    <div class="opt-text-row">
+                      <div class="opt-radio">
+                         <div v-if="poll.votedIndex === idx" class="radio-filled"></div>
+                      </div>
+                      <span class="opt-label">{{ opt.text }}</span>
+                      <span class="opt-votes" v-if="poll.votedIndex !== null || isHost || poll.isEnded">{{ opt.votes }} vote(s)</span>
+                    </div>
+                    <div class="opt-progress-bg" v-if="poll.votedIndex !== null || isHost || poll.isEnded">
+                      <div class="opt-progress-bar" :style="{ width: poll.totalVotes ? (opt.votes / poll.totalVotes * 100) + '%' : '0%' }"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="poll-footer">
+                  <div class="poll-meta" v-if="poll.votedIndex !== null || poll.isEnded || isHost">{{ poll.totalVotes }} total vote(s)</div>
+                  
+                  <div v-if="isHost" class="poll-host-actions">
+                    <button v-if="!poll.isEnded" class="btn-text-blue" @click="endPoll(poll.id)">End poll</button>
+                    <button class="btn-icon-trash" @click="deletePoll(poll.id)" title="Delete poll">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1zM18 7H6v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7z"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="poll-create-view">
+               <div class="create-header">
+                 <button class="btn-back" @click="isCreatingPoll = false"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
+                 <h4>Create a poll</h4>
+               </div>
+               
+               <input type="text" class="poll-input main-q" placeholder="Ask a question..." v-model="newPollQuestion" />
+               
+               <div class="poll-opts-edit">
+                 <div v-for="(opt, idx) in newPollOptions" :key="idx" class="opt-edit-row">
+                   <input type="text" class="poll-input" :placeholder="'Option ' + (idx + 1)" v-model="newPollOptions[idx]" />
+                   <button v-if="newPollOptions.length > 2" class="btn-remove-opt" @click="removePollOption(idx)">
+                     <svg viewBox="0 0 24 24" width="16" height="16" fill="#9aa0a6"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                   </button>
+                 </div>
+                 <button class="btn-add-opt" @click="addPollOption">+ Add option</button>
+               </div>
+               
+               <div class="poll-actions">
+                 <button class="btn-launch" @click="launchPoll" :disabled="!newPollQuestion.trim() || newPollOptions.some(o=>!o.trim())">Launch</button>
+               </div>
+            </div>
+
+          </div>
+        </template>
+
         <template v-if="activePanel === 'effects'">
           <div class="panel-header">
             <h3>Effects</h3>
@@ -349,7 +572,13 @@
       </div>
 
       <div class="controls-center" @click.stop>
-        <button class="ctrl-btn mic-btn" :class="{ 'off': !micOn, 'is-on': micOn, 'is-speaking': isLocalSpeaking }" @click="toggleMic" :title="micOn ? 'Turn off microphone' : 'Turn on microphone'">
+        <button 
+          class="ctrl-btn mic-btn" 
+          :class="{ 'off': !micOn, 'is-on': micOn, 'is-speaking': isLocalSpeaking }" 
+          @click="toggleMic" 
+          :title="(!isHost && !isMicEnabled) ? 'Microphone disabled by host' : (micOn ? 'Turn off microphone' : 'Turn on microphone')"
+          :disabled="!isHost && !isMicEnabled"
+        >
           
           <div v-if="micOn" class="mic-wave">
             <span class="wave-bar"></span>
@@ -365,7 +594,12 @@
         </button>
 
         <div class="ctrl-group" :class="{ off: !cameraOn }">
-          <button class="ctrl-group-main" @click="toggleCamera" :title="cameraOn ? 'Turn off camera' : 'Turn on camera'">
+          <button 
+            class="ctrl-group-main" 
+            @click="toggleCamera" 
+            :title="(!isHost && !isCameraEnabled) ? 'Camera disabled by host' : (cameraOn ? 'Turn off camera' : 'Turn on camera')"
+            :disabled="!isHost && !isCameraEnabled"
+          >
             <svg v-if="cameraOn" viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
             <svg v-else viewBox="0 0 24 24" width="20" height="20"><path fill="white" d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/><line x1="2" y1="2" x2="22" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
           </button>
@@ -389,12 +623,22 @@
           </Transition>
         </div>
 
-        <button class="ctrl-btn" :class="{ active: screenSharing }" @click="toggleScreenShare" title="Present now">
+        <button 
+          class="ctrl-btn" 
+          :class="{ active: screenSharing }" 
+          @click="toggleScreenShare" 
+          :disabled="!isHost && !isShareScreenEnabled"
+          :title="(!isHost && !isShareScreenEnabled) ? 'Screen sharing disabled by host' : 'Present now'"
+        >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6zm8 9l-4-4h3V8h2v3h3l-4 4z"/></svg>
         </button>
 
         <button class="ctrl-btn" :class="{ active: showEmojiPicker }" @click.stop="toggleEmojiPicker" title="Send a reaction">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+        </button>
+
+        <button class="ctrl-btn" :class="{ active: handRaised }" @click.stop="toggleHand" :title="handRaised ? 'Lower hand' : 'Raise hand'">
+          <svg viewBox="0 0 128 128" width="22" height="22" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMidYMid meet"><radialGradient id="IconifyId17ecdb2904d178eab19847" cx="57.16" cy="33.264" r="89.842" gradientUnits="userSpaceOnUse"><stop stop-color="#FFCA28" offset=".353"></stop><stop stop-color="#FFB300" offset=".872"></stop></radialGradient><path d="M50.9 122.3c-23.88 0-30.28-12.73-31.45-23.41c-.55-5.04-1.27-61.23-1.27-61.8c0-2.78.71-7.48 5.46-7.48c4.46 0 6.46 3.77 6.46 7.5l.46 23.24c.02.82.68 1.65 1.5 1.65s1.48-.84 1.5-1.66l.59-38.24c0-3.76 2-7.57 6.46-7.57s6.46 3.74 6.46 7.48l.48 37.92c.01.82.68 1.47 1.5 1.47s1.49-.66 1.5-1.48l.57-46.71c0-3.75 2-7.52 6.46-7.52s6.46 3.77 6.46 7.5l.59 46.46a1.5 1.5 0 0 0 3 0L68.1 25c0-3.75 2-7.52 6.46-7.52s6.46 3.77 6.46 7.5c.11 12.42.38 44.85.34 46.01c-.08.92.26 1.52.56 1.85c.4.44.98.69 1.63.69c1.44 0 2.87-1.14 3.27-1.49c1.78-1.54 3.31-3.95 4.93-6.5c2.02-3.18 4.12-6.48 6.36-7.39c1.76-.71 3.89-1.11 6.01-1.11c3.4 0 5.53 1 5.89 1.98c1.56 4.3-.32 5.95-5.09 9.6l-.92.71c-4.73 3.65-7.8 11.08-10.52 17.63c-1.11 2.67-2.15 5.2-3.23 7.32c-.65 1.28-1.21 2.79-1.86 4.53c-3.46 9.36-8.72 23.49-37.49 23.49z" fill="url(#IconifyId17ecdb2904d178eab19847)"></path><path d="M57.59 7.2c2.29 0 4.96 1.57 4.96 6.04l.59 46.62c.02 1.64 1.36 3.14 3 3.14s2.98-1.5 3-3.14l.47-34.78c0-2.77 1.3-6.04 4.96-6.04s4.96 3.21 4.96 6c.15 17.6.37 44.16.34 45.88c-.1 1.46.46 2.4.95 2.95c.69.76 1.67 1.17 2.74 1.17c1.9 0 3.61-1.3 4.25-1.86c1.94-1.68 3.53-4.18 5.21-6.83c1.81-2.85 3.86-6.07 5.66-6.8c1.56-.63 3.55-1 5.45-1c2.78 0 4.24.74 4.5 1.04c1.12 3.12.24 4.14-4.61 7.84l-.92.71c-5.05 3.89-8.2 11.52-10.99 18.25c-1.09 2.65-2.13 5.14-3.18 7.21c-.69 1.36-1.3 2.98-1.93 4.69c-1.68 4.51-3.77 10.13-8.78 14.57c-6.02 5.35-14.96 7.94-27.33 7.94c-12.57 0-27.96-3.83-29.96-22.08c-.45-4.12-1.07-45.9-1.26-61.62c0-3.98 1.53-6 4.16-6c2.29 0 5.16 1.57 5.16 6v.06l.26 22.96c.03 1.63 1.17 2.87 2.8 2.87h.01c1.64 0 2.97-1.25 2.99-2.88l.59-38.16c0-2.77 1.3-5.98 4.96-5.98s4.96 3.24 4.96 6.05l.45 37.91c.04 1.65.99 2.97 2.99 2.97s3.01-1.32 3.03-2.96l.59-46.74c0-4.43 2.68-6 4.97-6m0-3c-4.95 0-7.96 4.03-7.96 9l-.57 46.7l-.48-37.91c0-4.97-3.01-9-7.96-9s-7.96 4.03-7.96 9l-.59 38.15l-.47-23.03c0-4.97-3.02-9-7.96-9c-4.95 0-6.96 4.03-6.96 9c0 0 .72 56.78 1.28 61.94c.93 8.5 5.74 24.75 32.94 24.75c35.1 0 36.64-20.86 40.71-28.84c3.79-7.43 7.09-19.64 13.33-24.45c4.96-3.83 8.62-6.12 6.5-12c-.71-1.96-3.81-2.97-7.3-2.97c-2.2 0-4.56.4-6.57 1.22c-4.6 1.87-7.84 10.79-11.7 14.14c-.72.62-1.66 1.13-2.29 1.13c-.46 0-.76-.27-.7-.95c.06-.69-.34-46.09-.34-46.09c0-4.97-3.01-9-7.96-9s-7.96 4.03-7.96 9l-.47 34.65l-.6-46.44c0-4.98-3.01-9-7.96-9z" fill="#EDA600"></path><defs><path id="IconifyId17ecdb2904d178eab19848" d="M107.92 57.8c-2.27-2.53-8.01-3.72-13.54-1.54c-4.65 1.83-9.96 19.19-9.96 19.19l-3.87-6.4s-65.53 21.5-64.6 30s7.74 24.75 34.94 24.75c35.1 0 36.64-20.86 40.71-28.84c3.79-7.43 8.56-24.71 14.42-26.55c3.8-1.18 3.82-8.48 1.9-10.61z"></path></defs><clipPath id="IconifyId17ecdb2904d178eab19849"><use xlink:href="#IconifyId17ecdb2904d178eab19848"></use></clipPath><g clip-path="url(#IconifyId17ecdb2904d178eab19849)"><path d="M83.91 69.48C73 73.64 66.57 83.91 62.62 97.38c-.54 1.86 1.17 2.4 1.83.58c6.86-18.88 23.87-25.11 23.87-25.11l-4.41-3.37z" fill="#EDA600"></path></g></svg>
         </button>
 
         <button v-if="isHost" class="ctrl-btn" :class="{ off: isRecording, active: isUploading }" @click="toggleRecording" :disabled="isUploading" :title="isRecording ? 'Stop recording' : 'Start recording'">
@@ -408,6 +652,15 @@
           </button>
           <Transition name="pop-center">
             <div v-if="showMoreDropdown" class="more-dropdown" @click.stop>
+              <button class="dropdown-item mobile-only-menu" @click="togglePanel('activities'); showMoreDropdown = false">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M14 5C14 4.44772 14.4477 4 15 4H19C19.5523 4 20 4.44772 20 5V9C20 9.55228 19.5523 10 19 10C18.4477 10 18 9.55228 18 9V6H15C14.4477 6 14 5.55228 14 5ZM4.29289 13.2929C4.68342 12.9024 5.31658 12.9024 5.70711 13.2929L7.5 15.0858L9.29289 13.2929C9.68342 12.9024 10.3166 12.9024 10.7071 13.2929C11.0976 13.6834 11.0976 14.3166 10.7071 14.7071L8.91421 16.5L10.7071 18.2929C11.0976 18.6834 11.0976 19.3166 10.7071 19.7071C10.3166 20.0976 9.68342 20.0976 9.29289 19.7071L7.5 17.9142L5.70711 19.7071C5.31658 20.0976 4.68342 20.0976 4.29289 19.7071C3.90237 19.3166 3.90237 18.6834 4.29289 18.2929L6.08579 16.5L4.29289 14.7071C3.90237 14.3166 3.90237 13.6834 4.29289 13.2929ZM6 7.5C6 6.67157 6.67157 6 7.5 6C8.32843 6 9 6.67157 9 7.5C9 8.32843 8.32843 9 7.5 9C6.67157 9 6 8.32843 6 7.5ZM7.5 4C5.567 4 4 5.567 4 7.5C4 9.433 5.567 11 7.5 11C9.433 11 11 9.433 11 7.5C11 5.567 9.433 4 7.5 4ZM16.5 15C15.6716 15 15 15.6716 15 16.5C15 17.3284 15.6716 18 16.5 18C17.3284 18 18 17.3284 18 16.5C18 15.6716 17.3284 15 16.5 15ZM13 16.5C13 14.567 14.567 13 16.5 13C18.433 13 20 14.567 20 16.5C20 18.433 18.433 20 16.5 20C14.567 20 13 18.433 13 16.5ZM14 11C14.5523 11 15 10.5523 15 10C15 9.44772 14.5523 9 14 9C13.4477 9 13 9.44772 13 10C13 10.5523 13.4477 11 14 11ZM13 12C13 12.5523 12.5523 13 12 13C11.4477 13 11 12.5523 11 12C11 11.4477 11.4477 11 12 11C12.5523 11 13 11.4477 13 12ZM16 9C16.5523 9 17 8.55228 17 8C17 7.44772 16.5523 7 16 7C15.4477 7 15 7.44772 15 8C15 8.55228 15.4477 9 16 9Z"></path></svg>
+                Activities
+                <span v-if="unreadActivitiesCount > 0" class="util-badge-menu">{{ unreadActivitiesCount }}</span>
+              </button>
+              <button v-if="isHost" class="dropdown-item mobile-only-menu" @click="togglePanel('host'); showMoreDropdown = false">
+                <span v-html="SVG_HOST" style="width: 18px; height: 18px; display: inline-block;"></span>
+                Host controls
+              </button>
               <button class="dropdown-item mobile-only-menu" @click="togglePanel('info'); showMoreDropdown = false">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
                 Meeting details
@@ -448,15 +701,74 @@
       </div>
 
       <div class="bottom-right" @click.stop>
+        
         <button class="util-btn" :class="{ active: activePanel === 'info' }" @click.stop="togglePanel('info')" title="Meeting details">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
         </button>
-        <button class="util-btn" :class="{ active: activePanel === 'people' }" @click.stop="togglePanel('people')" title="People">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-        </button>
+
+        <button v-if="isHost" class="util-btn" :class="{ active: activePanel === 'host' }" @click.stop="togglePanel('host')" title="Host controls" v-html="SVG_HOST" style="width: 20px; height: 20px; padding: 10px; box-sizing: content-box;"></button>
+        
+        <div class="people-group-wrapper" @mouseleave="showPeopleHover = false; showAdmitHover = false">
+          
+          <Transition name="fade">
+            <div v-if="waitingGuests.length > 0 && isHost" class="admit-pill-wrapper" @mouseenter="showAdmitHover = true; showPeopleHover = false">
+              <button class="admit-green-pill" @click.stop="togglePanel('people')">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                Admit {{ waitingGuests.length }} guest{{ waitingGuests.length > 1 ? 's' : '' }}
+              </button>
+
+              <div v-if="showAdmitHover" class="hover-popup admit-hover-popup" @click.stop>
+                <div class="ah-header">Waiting to join <span class="ah-badge">Visible to hosts</span></div>
+                <div class="ah-actions">
+                   <button class="ah-btn-admit" @click="admitGuest(waitingGuests[0].id)">Admit</button>
+                   <button class="ah-btn-deny" @click="denyGuest(waitingGuests[0].id)">Deny</button>
+                </div>
+                <div class="ah-guest-info">
+                   <div class="ah-avatar"><svg viewBox="0 0 24 24" width="24" height="24" fill="#9aa0a6"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+                   <div class="ah-details">
+                     <strong>1 unconfirmed user</strong>
+                     <span>{{ waitingGuests[0].name }}</span>
+                   </div>
+                </div>
+                <button class="ah-view-all" @click="togglePanel('people'); showAdmitHover = false">View all ({{ waitingGuests.length }}) &gt;</button>
+              </div>
+            </div>
+          </Transition>
+
+          <div class="people-btn-wrapper" @mouseenter="showPeopleHover = true; showAdmitHover = false">
+            <button class="util-btn" :class="{ active: activePanel === 'people' }" @click.stop="togglePanel('people')" title="People">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+              <span class="util-badge people-count-badge">{{ participants.length + 1 }}</span>
+            </button>
+            
+            <div v-if="showPeopleHover && !waitingGuests.length" class="hover-popup people-hover-popup" @click.stop>
+               <div class="ph-title">People</div>
+               <button v-if="isHost" class="ph-btn-host" @click="togglePanel('host'); showPeopleHover = false">Host controls</button>
+               <div class="ph-list-box">
+                  <div class="ph-joined-text">{{ participants.length + 1 }} joined</div>
+                  <div class="ph-just-you" v-if="participants.length === 0">Just you</div>
+                  <div class="ph-avatars">
+                     <div class="ph-avatar host-avatar">
+                        <svg viewBox="0 0 24 24" width="60%" height="60%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                     </div>
+                     <div class="ph-avatar guest-avatar" v-for="p in participants" :key="p.peerId" :style="{ backgroundColor: p.avatarColor }">
+                        <svg viewBox="0 0 24 24" width="60%" height="60%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                     </div>
+                  </div>
+               </div>
+               <button class="ph-view-all" @click="togglePanel('people'); showPeopleHover = false">View everyone in this call &gt;</button>
+            </div>
+          </div>
+        </div>
+
         <button class="util-btn" :class="{ active: activePanel === 'chat' }" @click.stop="togglePanel('chat')" title="In-call messages">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
           <span v-if="unreadCount > 0" class="util-badge">{{ unreadCount }}</span>
+        </button>
+
+        <button class="util-btn" :class="{ active: activePanel === 'activities' }" @click.stop="togglePanel('activities')" title="Activities" style="margin-left: -4px;">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M14 5C14 4.44772 14.4477 4 15 4H19C19.5523 4 20 4.44772 20 5V9C20 9.55228 19.5523 10 19 10C18.4477 10 18 9.55228 18 9V6H15C14.4477 6 14 5.55228 14 5ZM4.29289 13.2929C4.68342 12.9024 5.31658 12.9024 5.70711 13.2929L7.5 15.0858L9.29289 13.2929C9.68342 12.9024 10.3166 12.9024 10.7071 13.2929C11.0976 13.6834 11.0976 14.3166 10.7071 14.7071L8.91421 16.5L10.7071 18.2929C11.0976 18.6834 11.0976 19.3166 10.7071 19.7071C10.3166 20.0976 9.68342 20.0976 9.29289 19.7071L7.5 17.9142L5.70711 19.7071C5.31658 20.0976 4.68342 20.0976 4.29289 19.7071C3.90237 19.3166 3.90237 18.6834 4.29289 18.2929L6.08579 16.5L4.29289 14.7071C3.90237 14.3166 3.90237 13.6834 4.29289 13.2929ZM6 7.5C6 6.67157 6.67157 6 7.5 6C8.32843 6 9 6.67157 9 7.5C9 8.32843 8.32843 9 7.5 9C6.67157 9 6 8.32843 6 7.5ZM7.5 4C5.567 4 4 5.567 4 7.5C4 9.433 5.567 11 7.5 11C9.433 11 11 9.433 11 7.5C11 5.567 9.433 4 7.5 4ZM16.5 15C15.6716 15 15 15.6716 15 16.5C15 17.3284 15.6716 18 16.5 18C17.3284 18 18 17.3284 18 16.5C18 15.6716 17.3284 15 16.5 15ZM13 16.5C13 14.567 14.567 13 16.5 13C18.433 13 20 14.567 20 16.5C20 18.433 18.433 20 16.5 20C14.567 20 13 18.433 13 16.5ZM14 11C14.5523 11 15 10.5523 15 10C15 9.44772 14.5523 9 14 9C13.4477 9 13 9.44772 13 10C13 10.5523 13.4477 11 14 11ZM13 12C13 12.5523 12.5523 13 12 13C11.4477 13 11 12.5523 11 12C11 11.4477 11.4477 11 12 11C12.5523 11 13 11.4477 13 12ZM16 9C16.5523 9 17 8.55228 17 8C17 7.44772 16.5523 7 16 7C15.4477 7 15 7.44772 15 8C15 8.55228 15.4477 9 16 9Z"></path></svg>
+          <span v-if="unreadActivitiesCount > 0" class="util-badge">{{ unreadActivitiesCount }}</span>
         </button>
       </div>
     </div>
@@ -545,8 +857,8 @@ const SVG_END = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentCo
 const SVG_AVATAR = `<svg viewBox="0 0 24 24" width="60%" height="60%" fill="white"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>`;
 const SVG_MUTE_BADGE = `<svg viewBox="0 0 24 24" width="16" height="16" fill="white"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>`;
 const SVG_MSG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>`;
-const SVG_HAND = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 3C13.2239 3 13 3.22386 13 3.5V12C13 12.5523 12.5523 13 12 13C11.4477 13 11 12.5523 11 12V5.5C11 5.22386 10.7761 5 10.5 5C10.2239 5 9.99999 5.22386 9.99999 5.5V13.9677C9.99999 15.0757 8.62655 15.5918 7.8969 14.7579L5.34951 11.8466C5.19167 11.6662 4.95459 11.576 4.71675 11.6057C4.15329 11.6761 3.88804 12.3395 4.24762 12.779L8.93807 18.5118C10.2266 20.0867 12.154 21 14.1888 21C17.3982 21 20 18.3982 20 15.1888V7.5C20 7.22386 19.7761 7 19.5 7C19.2239 7 19 7.22386 19 7.5V12C19 12.5523 18.5523 13 18 13C17.4477 13 17 12.5523 17 12V5.5C17 5.22386 16.7761 5 16.5 5C16.2239 5 16 5.22386 16 5.5V12C16 12.5523 15.5523 13 15 13C14.4477 13 14 12.5523 14 12V3.5C14 3.22386 13.7761 3 13.5 3ZM15.9611 3.05823C15.7525 1.88823 14.73 1 13.5 1C12.27 1 11.2475 1.88823 11.0389 3.05823C10.8653 3.0201 10.685 3 10.5 3C9.11928 3 7.99999 4.11929 7.99999 5.5V11.8386L6.85467 10.5296C6.2595 9.84942 5.36551 9.50903 4.46868 9.62113C2.34401 9.88672 1.34381 12.3883 2.6997 14.0455L7.39016 19.7783C9.05854 21.8174 11.5541 23 14.1888 23C18.5028 23 22 19.5028 22 15.1888V7.5C22 6.11929 20.8807 5 19.5 5C19.315 5 19.1347 5.0201 18.9611 5.05823C18.7525 3.88823 17.73 3 16.5 3C16.315 3 16.1347 3.0201 15.9611 3.05823Z"/></svg>`;
-
+const SVG_HAND = `<svg viewBox="0 0 128 128" width="18" height="18" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMidYMid meet"><radialGradient id="IconifyId17ecdb2904d178eab19847" cx="57.16" cy="33.264" r="89.842" gradientUnits="userSpaceOnUse"><stop stop-color="#FFCA28" offset=".353"></stop><stop stop-color="#FFB300" offset=".872"></stop></radialGradient><path d="M50.9 122.3c-23.88 0-30.28-12.73-31.45-23.41c-.55-5.04-1.27-61.23-1.27-61.8c0-2.78.71-7.48 5.46-7.48c4.46 0 6.46 3.77 6.46 7.5l.46 23.24c.02.82.68 1.65 1.5 1.65s1.48-.84 1.5-1.66l.59-38.24c0-3.76 2-7.57 6.46-7.57s6.46 3.74 6.46 7.48l.48 37.92c.01.82.68 1.47 1.5 1.47s1.49-.66 1.5-1.48l.57-46.71c0-3.75 2-7.52 6.46-7.52s6.46 3.77 6.46 7.5l.59 46.46a1.5 1.5 0 0 0 3 0L68.1 25c0-3.75 2-7.52 6.46-7.52s6.46 3.77 6.46 7.5c.11 12.42.38 44.85.34 46.01c-.08.92.26 1.52.56 1.85c.4.44.98.69 1.63.69c1.44 0 2.87-1.14 3.27-1.49c1.78-1.54 3.31-3.95 4.93-6.5c2.02-3.18 4.12-6.48 6.36-7.39c1.76-.71 3.89-1.11 6.01-1.11c3.4 0 5.53 1 5.89 1.98c1.56 4.3-.32 5.95-5.09 9.6l-.92.71c-4.73 3.65-7.8 11.08-10.52 17.63c-1.11 2.67-2.15 5.2-3.23 7.32c-.65 1.28-1.21 2.79-1.86 4.53c-3.46 9.36-8.72 23.49-37.49 23.49z" fill="url(#IconifyId17ecdb2904d178eab19847)"></path><path d="M57.59 7.2c2.29 0 4.96 1.57 4.96 6.04l.59 46.62c.02 1.64 1.36 3.14 3 3.14s2.98-1.5 3-3.14l.47-34.78c0-2.77 1.3-6.04 4.96-6.04s4.96 3.21 4.96 6c.15 17.6.37 44.16.34 45.88c-.1 1.46.46 2.4.95 2.95c.69.76 1.67 1.17 2.74 1.17c1.9 0 3.61-1.3 4.25-1.86c1.94-1.68 3.53-4.18 5.21-6.83c1.81-2.85 3.86-6.07 5.66-6.8c1.56-.63 3.55-1 5.45-1c2.78 0 4.24.74 4.5 1.04c1.12 3.12.24 4.14-4.61 7.84l-.92.71c-5.05 3.89-8.2 11.52-10.99 18.25c-1.09 2.65-2.13 5.14-3.18 7.21c-.69 1.36-1.3 2.98-1.93 4.69c-1.68 4.51-3.77 10.13-8.78 14.57c-6.02 5.35-14.96 7.94-27.33 7.94c-12.57 0-27.96-3.83-29.96-22.08c-.45-4.12-1.07-45.9-1.26-61.62c0-3.98 1.53-6 4.16-6c2.29 0 5.16 1.57 5.16 6v.06l.26 22.96c.03 1.63 1.17 2.87 2.8 2.87h.01c1.64 0 2.97-1.25 2.99-2.88l.59-38.16c0-2.77 1.3-5.98 4.96-5.98s4.96 3.24 4.96 6.05l.45 37.91c.04 1.65.99 2.97 2.99 2.97s3.01-1.32 3.03-2.96l.59-46.74c0-4.43 2.68-6 4.97-6m0-3c-4.95 0-7.96 4.03-7.96 9l-.57 46.7l-.48-37.91c0-4.97-3.01-9-7.96-9s-7.96 4.03-7.96 9l-.59 38.15l-.47-23.03c0-4.97-3.02-9-7.96-9c-4.95 0-6.96 4.03-6.96 9c0 0 .72 56.78 1.28 61.94c.93 8.5 5.74 24.75 32.94 24.75c35.1 0 36.64-20.86 40.71-28.84c3.79-7.43 7.09-19.64 13.33-24.45c4.96-3.83 8.62-6.12 6.5-12c-.71-1.96-3.81-2.97-7.3-2.97c-2.2 0-4.56.4-6.57 1.22c-4.6 1.87-7.84 10.79-11.7 14.14c-.72.62-1.66 1.13-2.29 1.13c-.46 0-.76-.27-.7-.95c.06-.69-.34-46.09-.34-46.09c0-4.97-3.01-9-7.96-9s-7.96 4.03-7.96 9l-.47 34.65l-.6-46.44c0-4.98-3.01-9-7.96-9z" fill="#EDA600"></path><defs><path id="IconifyId17ecdb2904d178eab19848" d="M107.92 57.8c-2.27-2.53-8.01-3.72-13.54-1.54c-4.65 1.83-9.96 19.19-9.96 19.19l-3.87-6.4s-65.53 21.5-64.6 30s7.74 24.75 34.94 24.75c35.1 0 36.64-20.86 40.71-28.84c3.79-7.43 8.56-24.71 14.42-26.55c3.8-1.18 3.82-8.48 1.9-10.61z"></path></defs><clipPath id="IconifyId17ecdb2904d178eab19849"><use xlink:href="#IconifyId17ecdb2904d178eab19848"></use></clipPath><g clip-path="url(#IconifyId17ecdb2904d178eab19849)"><path d="M83.91 69.48C73 73.64 66.57 83.91 62.62 97.38c-.54 1.86 1.17 2.4 1.83.58c6.86-18.88 23.87-25.11 23.87-25.11l-4.41-3.37z" fill="#EDA600"></path></g></svg>`;
+const SVG_ACTIVITIES = `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M14 5C14 4.44772 14.4477 4 15 4H19C19.5523 4 20 4.44772 20 5V9C20 9.55228 19.5523 10 19 10C18.4477 10 18 9.55228 18 9V6H15C14.4477 6 14 5.55228 14 5ZM4.29289 13.2929C4.68342 12.9024 5.31658 12.9024 5.70711 13.2929L7.5 15.0858L9.29289 13.2929C9.68342 12.9024 10.3166 12.9024 10.7071 13.2929C11.0976 13.6834 11.0976 14.3166 10.7071 14.7071L8.91421 16.5L10.7071 18.2929C11.0976 18.6834 11.0976 19.3166 10.7071 19.7071C10.3166 20.0976 9.68342 20.0976 9.29289 19.7071L7.5 17.9142L5.70711 19.7071C5.31658 20.0976 4.68342 20.0976 4.29289 19.7071C3.90237 19.3166 3.90237 18.6834 4.29289 18.2929L6.08579 16.5L4.29289 14.7071C3.90237 14.3166 3.90237 13.6834 4.29289 13.2929ZM6 7.5C6 6.67157 6.67157 6 7.5 6C8.32843 6 9 6.67157 9 7.5C9 8.32843 8.32843 9 7.5 9C6.67157 9 6 8.32843 6 7.5ZM7.5 4C5.567 4 4 5.567 4 7.5C4 9.433 5.567 11 7.5 11C9.433 11 11 9.433 11 7.5C11 5.567 9.433 4 7.5 4ZM16.5 15C15.6716 15 15 15.6716 15 16.5C15 17.3284 15.6716 18 16.5 18C17.3284 18 18 17.3284 18 16.5C18 15.6716 17.3284 15 16.5 15ZM13 16.5C13 14.567 14.567 13 16.5 13C18.433 13 20 14.567 20 16.5C20 18.433 18.433 20 16.5 20C14.567 20 13 18.433 13 16.5ZM14 11C14.5523 11 15 10.5523 15 10C15 9.44772 14.5523 9 14 9C13.4477 9 13 9.44772 13 10C13 10.5523 13.4477 11 14 11ZM13 12C13 12.5523 12.5523 13 12 13C11.4477 13 11 12.5523 11 12C11 11.4477 11.4477 11 12 11C12.5523 11 13 11.4477 13 12ZM16 9C16.5523 9 17 8.55228 17 8C17 7.44772 16.5523 7 16 7C15.4477 7 15 7.44772 15 8C15 8.55228 15.4477 9 16 9Z"></path></svg>`;
 const networkQuality = ref('good'); // 'good' (Green), 'fair' (Yellow), 'poor' (Red)
 let networkInterval = null;
 
@@ -576,6 +888,10 @@ const effectsTab       = ref('backgrounds') // 'backgrounds', 'filters', 'appear
 const touchUpOn  = ref(false)
 const lightingOn = ref(false)
 const framingOn  = ref(false)
+
+const SVG_SPEAKING_BLUE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14c0 .55-.45 1-1 1s-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4zm4 0c0 .55-.45 1-1 1s-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v8zm4-2c0 .55-.45 1-1 1s-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4z"/></svg>`;
+const SVG_3DOTS = `<svg viewBox="0 0 24 24" width="20" height="20" fill="#9aa0a6"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>`;
+const SVG_HOST = `<svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M19.85 8.75l4.15.83v4.84l-4.15.83 2.35 3.52-3.43 3.43-3.52-2.35-.83 4.15H9.58l-.83-4.15-3.52 2.35-3.43-3.43 2.35-3.52L0 14.42V9.58l4.15-.83L1.8 5.23 5.23 1.8l3.52 2.35L9.58 0h4.84l.83 4.15 3.52-2.35 3.43 3.43-2.35 3.52zm-1.57 5.07l4-.81v-2l-4-.81-.54-1.3 2.29-3.43-1.43-1.43-3.43 2.29-1.3-.54-.81-4h-2l-.81 4-1.3.54-3.43-2.29-1.43 1.43L6.38 8.9l-.54 1.3-4 .81v2l4 .81.54 1.3-2.29 3.43 1.43 1.43 3.43-2.29 1.3.54.81 4h2l.81-4 1.3-.54 3.43 2.29 1.43-1.43-2.29-3.43.54-1.3zm-8.186-4.672A3.43 3.43 0 0 1 12 8.57 3.44 3.44 0 0 1 15.43 12a3.43 3.43 0 1 1-5.336-2.852zm.956 4.274c.281.188.612.288.95.288A1.7 1.7 0 0 0 13.71 12a1.71 1.71 0 1 0-2.66 1.422z"></path></svg>`;
 
 let selfieSegmentation = null
 let blurRafId          = null
@@ -710,12 +1026,39 @@ const remoteConnected = ref(false)
 const peerError       = ref('')
 const isHost          = ref(false)
 const isLocked        = ref(false)
+const isChatEnabled   = ref(true)
+const isShareScreenEnabled = ref(true)
+const isMicEnabled         = ref(true) 
+const isCameraEnabled      = ref(true)
+
+watch(isChatEnabled, (newVal) => {
+  if (isHost.value && dataConn.value?.open) {
+    dataConn.value.send({ type: 'toggle_chat', enabled: newVal });
+  }
+});
+
+watch(isShareScreenEnabled, (newVal) => {
+  if (isHost.value && dataConn.value?.open) {
+    dataConn.value.send({ type: 'toggle_screenshare', enabled: newVal });
+  }
+});
+
+watch(isMicEnabled, (newVal) => {
+  if (isHost.value && dataConn.value?.open) dataConn.value.send({ type: 'toggle_mic_permission', enabled: newVal });
+});
+
+
+watch(isCameraEnabled, (newVal) => {
+  if (isHost.value && dataConn.value?.open) dataConn.value.send({ type: 'toggle_camera_permission', enabled: newVal });
+});
 const rejected        = ref(false)
 const rejectedReason = ref('');
 
-const showAdmitModal  = ref(false)
-const pendingCall     = ref(null)
-const pendingConn     = ref(null)
+const waitingGuests = ref([])
+const showPeopleHover = ref(false)
+const showAdmitHover = ref(false)
+const showWaitingOptions = ref(null)
+const showPinMenu = ref(false)
 
 const showReadyDialog  = ref(false)
 const showEmojiPicker  = ref(false)
@@ -732,6 +1075,25 @@ let recognition = null
 const messages     = ref([])
 const messageInput = ref('')
 const unreadCount  = ref(0)
+
+function playSound(fileName) {
+  try {
+    // Dito pa lang gagawa ng Audio para sure na may user interaction na!
+    const audio = new Audio(`/sounds/${fileName}.ogg`);
+    audio.volume = 1.0; 
+    audio.play().catch(e => {
+      console.warn("Browser blocked sound:", e);
+    });
+  } catch (err) {
+    console.error("Audio play error:", err);
+  }
+}
+
+const unreadActivitiesCount = ref(0);
+const polls = ref([]); // Listahan ng mga active polls
+const isCreatingPoll = ref(false); // Para sa View ng Host
+const newPollQuestion = ref('');
+const newPollOptions = ref(['', '']);
 
 const showSettings = ref(false)
 const settingsTab = ref('audio')
@@ -780,6 +1142,52 @@ const screenClass = computed(() => {
 const meetingLink = computed(() => {
   return `${window.location.origin}/meeting/${route.params.code}`
 })
+
+function addPollOption() { newPollOptions.value.push(''); }
+function removePollOption(index) { newPollOptions.value.splice(index, 1); }
+
+function launchPoll() {
+  if (!newPollQuestion.value.trim() || newPollOptions.value.some(o => !o.trim())) return;
+  const poll = {
+    id: Date.now().toString(),
+    question: newPollQuestion.value.trim(),
+    options: newPollOptions.value.map(opt => ({ text: opt.trim(), votes: 0 })),
+    totalVotes: 0,
+    votedIndex: null,
+    isEnded: false // BAGONG DAGDAG: Status kung tapos na ang botohan
+  };
+  polls.value.unshift(poll);
+  isCreatingPoll.value = false;
+  newPollQuestion.value = '';
+  newPollOptions.value = ['', ''];
+  if (dataConn.value?.open) dataConn.value.send({ type: 'new_poll', poll });
+}
+
+// BAGONG DAGDAG: I-lock ang poll
+function endPoll(pollId) {
+  const p = polls.value.find(p => p.id === pollId);
+  if (p) p.isEnded = true;
+  if (dataConn.value?.open) dataConn.value.send({ type: 'end_poll', pollId });
+}
+
+// BAGONG DAGDAG: Burahin ang poll
+function deletePoll(pollId) {
+  if(confirm("Are you sure you want to delete this poll?")) {
+    polls.value = polls.value.filter(p => p.id !== pollId);
+    if (dataConn.value?.open) dataConn.value.send({ type: 'delete_poll', pollId });
+  }
+}
+
+function votePoll(pollId, optIndex) {
+  const p = polls.value.find(p => p.id === pollId);
+  // Bawal bumoto nang dalawang beses
+  if (!p || p.votedIndex !== null) return; 
+  p.votedIndex = optIndex;
+  p.options[optIndex].votes++;
+  p.totalVotes++;
+  // I-broadcast ang boto
+  if (dataConn.value?.open) dataConn.value.send({ type: 'poll_vote', pollId, optIndex });
+}
 
 // BAGONG logic para sa PiP sa Mobile at Desktop
 async function openDocumentPiP() {
@@ -1223,10 +1631,11 @@ onMounted(async () => {
       updateEffects(); 
     } else {
       processSimpleFrame(); 
-    } // Paikutin agad ang Canvas kahit walang effect
-    // === ANTI-BLINK FIX END ===
-
+    } 
+    
     monitorAudioVolume(localStream, null, true);
+
+    playSound('join');
 
   } catch {
     peerError.value = 'Could not access camera/microphone.'
@@ -1252,30 +1661,34 @@ onMounted(async () => {
       await axios.post(`${API_URL}/api/meetings/${code}/peer`, { peer_id: id })
 
       peer.value.on('call', (call) => {
-        // 1. Kung naka-lock ang kwarto, i-reject agad!
         if (isLocked.value) {
           call.close();
           return;
         }
-        // 2. Kung bukas ang kwarto, i-hold muna ang tawag at ilabas ang Admit Modal
-        pendingCall.value = call;
-        showAdmitModal.value = true;
+        // Ilagay sa Waiting Queue imbes na Modal
+        waitingGuests.value.push({
+          id: call.peer,
+          name: `Guest ${waitingGuests.value.length + 1}`,
+          call: call,
+          conn: null
+        });
+        playSound('knock');
       })
 
       peer.value.on('connection', (conn) => {
-        // 1. Kapag LOCKED ang kwarto, sendan agad ng signal na REJECTED siya
         if (isLocked.value) {
           conn.on('open', () => {
-            conn.send({ type: 'rejected', reason: 'locked' }); // DAGDAG: reason
+            conn.send({ type: 'rejected', reason: 'locked' }); 
             setTimeout(() => conn.close(), 500);
           });
           return;
         }
 
-        // 2. I-hold din ang chat data ng guest habang naghihintay siya
-        if (showAdmitModal.value) {
-          pendingConn.value = conn;
-        } else {
+        // Hanapin kung nasa waiting queue
+        const guest = waitingGuests.value.find(g => g.id === conn.peer);
+        if (guest) {
+          guest.conn = conn;
+        } else if (!participants.value.find(p => p.peerId === conn.peer)) {
           dataConn.value = conn;
           conn.on('data', handleIncomingData);
         }
@@ -1316,6 +1729,11 @@ async function connectToHost(code, attempts = 0) {
     
     currentCall.value = call
     currentCall.value.on('stream', (remote) => {
+
+      if (!remoteConnected.value) {
+        playSound('join');
+      }
+
       remoteConnected.value = true;
       rejected.value = false;
 
@@ -1350,9 +1768,10 @@ async function connectToHost(code, attempts = 0) {
     call.on('close', () => { 
       if (!remoteConnected.value) {
         rejected.value = true;
+      } else {
+        playSound('leave'); 
       }
       remoteConnected.value = false 
-
       participants.value = [];
     })
 
@@ -1368,9 +1787,12 @@ async function connectToHost(code, attempts = 0) {
 function handleIncomingData(data) {
   if (data.type === 'chat') {
     messages.value.push({ id: Date.now(), sender: data.sender, text: data.text, time: data.time, isOwn: false })
-    if (activePanel.value !== 'chat') unreadCount.value++
+    if (activePanel.value !== 'chat') {
+      unreadCount.value++;
+      playSound('chat');
+    }
     scrollMessages()
-
+    
   } else if (data.type === 'chat_file') {
     const blob = new Blob([data.fileBlob], { type: data.fileType });
     const fileUrl = URL.createObjectURL(blob);
@@ -1386,7 +1808,10 @@ function handleIncomingData(data) {
       fileData: fileUrl // <-- Render ang link!
     });
     
-    if (activePanel.value !== 'chat') unreadCount.value++
+    if (activePanel.value !== 'chat') {
+      unreadCount.value++;
+      playSound('chat');
+    }
     scrollMessages()
     
   } else if (data.type === 'reaction') {
@@ -1395,6 +1820,7 @@ function handleIncomingData(data) {
   } else if (data.type === 'hand') {
     remoteHandRaised.value = data.raised;
     if (participants.value.length) participants.value[0].handRaised = data.raised;
+    if (data.raised) playSound('hand');
     
   } else if (data.type === 'mic') {
     remoteMicOn.value = data.on;
@@ -1404,13 +1830,36 @@ function handleIncomingData(data) {
     remoteCameraOn.value = data.on;
     if (participants.value.length) participants.value[0].cameraOn = data.on;
 
+  } else if (data.type === 'toggle_chat') {
+    isChatEnabled.value = data.enabled;
+
+  } else if (data.type === 'toggle_share_permission') {
+    isShareScreenEnabled.value = data.enabled;
+    // Kung kasalukuyang nag-pe-present ang guest tapos biglang pinatay ng host, itigil agad!
+    if (!data.enabled && screenSharing.value) {
+      toggleScreenShare();
+      alert("The host has disabled screen sharing for participants.");
+    }
+
+  } else if (data.type === 'toggle_mic_permission') {
+    isMicEnabled.value = data.enabled;
+    if (!data.enabled && micOn.value) {
+      toggleMic();
+      alert("The host muted your microphone and disabled turning it back on.");
+    }
+
+  } else if (data.type === 'toggle_camera_permission') {
+    isCameraEnabled.value = data.enabled;
+    if (!data.enabled && cameraOn.value) {
+      toggleCamera();
+      alert("The host turned off your camera and disabled turning it back on.");
+    }
+
   } else if (data.type === 'screen_share') {
     remoteScreenSharing.value = data.on;
     
-    // DAGDAG ITO: Ilipat ang video stream sa malaking screen share box!
     nextTick(() => {
       if (data.on && screenVideoEl.value && participants.value.length > 0) {
-        // Kunin yung video ng kausap at i-play sa malaking screen
         const remoteVid = document.getElementById('vid-' + participants.value[0].peerId);
         if (remoteVid && remoteVid.srcObject) {
           screenVideoEl.value.srcObject = remoteVid.srcObject;
@@ -1425,6 +1874,27 @@ function handleIncomingData(data) {
       toggleMic();
       alert("The host has muted your microphone.");
     }
+  } else if (data.type === 'new_poll') {
+    polls.value.unshift(data.poll);
+    if (activePanel.value !== 'activities') unreadActivitiesCount.value++;
+
+  // ACTIVITIES: Receive Vote
+  } else if (data.type === 'poll_vote') {
+    const p = polls.value.find(p => p.id === data.pollId);
+    if (p) { p.options[data.optIndex].votes++; p.totalVotes++; }
+
+  } else if (data.type === 'end_poll') {
+    const p = polls.value.find(p => p.id === data.pollId);
+    if (p) p.isEnded = true;
+
+  // BAGONG DAGDAG: Kapag binura ng host ang poll
+  } else if (data.type === 'delete_poll') {
+    polls.value = polls.value.filter(p => p.id !== data.pollId);
+
+  // ACTIVITIES: Sync existing polls sa mga bagong join na guest
+  } else if (data.type === 'sync_polls') {
+    polls.value = data.polls;
+
   } else if (data.type === 'rejected') {
     rejected.value = true;
     rejectedReason.value = data.reason || 'locked';
@@ -1795,93 +2265,92 @@ function kickGuest() {
 // ==========================
 // ADMIT / DENY GUEST LOGIC
 // ==========================
-function admitGuest() {
-  showAdmitModal.value = false;
-  
-  if (pendingCall.value) {
-    currentCall.value = pendingCall.value;
-    
-    // FIX 1: I-check kung naka-screen share ka bago ipadala ang video sa guest!
+function admitGuest(guestId) {
+  const index = waitingGuests.value.findIndex(g => g.id === guestId);
+  if (index === -1) return;
+  const guest = waitingGuests.value.splice(index, 1)[0];
+  showAdmitHover.value = false;
+
+  if (guest.call) {
+    currentCall.value = guest.call;
     let videoTrack = processedStream ? processedStream.getVideoTracks()[0] : localStream.getVideoTracks()[0];
-    if (screenSharing.value && screenStream) {
-      videoTrack = screenStream.getVideoTracks()[0]; // Ipadala ang screen imbes na camera
-    }
+    if (screenSharing.value && screenStream) videoTrack = screenStream.getVideoTracks()[0];
     
     const streamToAnswer = new MediaStream([videoTrack, ...localStream.getAudioTracks()]);
-    pendingCall.value.answer(streamToAnswer); // Dito pa lang natin sasagutin yung tawag
+    guest.call.answer(streamToAnswer);
     logAction('peerjs_call_received', { meeting_code: route.params.code });
     
     currentCall.value.on('stream', (remote) => {
+      if (!remoteConnected.value) {
+        playSound('join');
+      }
       remoteConnected.value = true;
       rejected.value = false;
-
       const newPeerId = currentCall.value.peer || Date.now().toString();
       participants.value = [{
-        peerId: newPeerId,
-        name: isHost.value ? 'Guest' : 'Host',
-        avatarColor: remoteAvatarColor.value,
-        isSpeaking: false,
-        micOn: remoteMicOn.value,
-        cameraOn: remoteCameraOn.value,
-        handRaised: remoteHandRaised.value
+        peerId: newPeerId, name: guest.name, avatarColor: remoteAvatarColor.value,
+        isSpeaking: false, micOn: remoteMicOn.value, cameraOn: remoteCameraOn.value, handRaised: remoteHandRaised.value
       }];
-      
       monitorAudioVolume(remote, participants.value[0], false);
-      
       nextTick(() => {
         const vidEl = document.getElementById('vid-' + newPeerId);
         if (vidEl) vidEl.srcObject = remote;
       });
-
       addRemoteStreamToMix(remote);
       startNetworkMonitor();
     });
-    
     currentCall.value.on('close', () => { 
       if (!remoteConnected.value) rejected.value = true;
-      remoteConnected.value = false; 
-      participants.value = []; 
+      else playSound('leave'); // BAGONG DAGDAG: Tumunog kapag umalis o na-disconnect ang guest
+      remoteConnected.value = false; participants.value = [];
     });
-    
-    pendingCall.value = null;
   }
   
-  if (pendingConn.value) {
-    dataConn.value = pendingConn.value;
+  if (guest.conn) {
+    dataConn.value = guest.conn;
     dataConn.value.on('data', handleIncomingData);
-    
-    // FIX 2: Ipadala agad ang current status mo (Screen Share, Mic, Camera) sa bagong pasok na guest!
     setTimeout(() => {
       if (dataConn.value?.open) {
         dataConn.value.send({ type: 'screen_share', on: screenSharing.value });
         dataConn.value.send({ type: 'mic', on: micOn.value });
         dataConn.value.send({ type: 'camera', on: cameraOn.value });
+        dataConn.value.send({ type: 'toggle_chat', enabled: isChatEnabled.value });
+        dataConn.value.send({ type: 'toggle_share_permission', enabled: isShareScreenEnabled.value });
+        dataConn.value.send({ type: 'toggle_mic_permission', enabled: isMicEnabled.value });
+        dataConn.value.send({ type: 'toggle_camera_permission', enabled: isCameraEnabled.value });
+        dataConn.value.send({ type: 'sync_polls', polls: polls.value });
       }
     }, 800);
-
-    pendingConn.value = null;
   }
 }
 
-function denyGuest() {
-  showAdmitModal.value = false;
-  if (pendingCall.value) {
-    pendingCall.value.close(); 
-    pendingCall.value = null;
+function denyGuest(guestId) {
+  const index = waitingGuests.value.findIndex(g => g.id === guestId);
+  if (index === -1) return;
+  const guest = waitingGuests.value.splice(index, 1)[0];
+  showWaitingOptions.value = null;
+
+  if (guest.call) guest.call.close();
+  if (guest.conn) {
+    guest.conn.send({ type: 'rejected', reason: 'denied' });
+    setTimeout(() => guest.conn.close(), 500);
   }
-  if (pendingConn.value) {
-    // DAGDAG ITO: Sabihan yung Guest na na-deny siya!
-    pendingConn.value.send({ type: 'rejected', reason: 'denied' }); // DAGDAG: reason
-    setTimeout(() => {
-      pendingConn.value.close();
-      pendingConn.value = null;
-    }, 500);
-  }
+}
+
+function admitAllGuests() {
+  // Simpleng loop para i-admit lahat ng nasa queue
+  const ids = waitingGuests.value.map(g => g.id);
+  ids.forEach(id => admitGuest(id));
 }
 // ==========================
 
 function toggleHand() {
   handRaised.value = !handRaised.value
+
+  if (handRaised.value) {
+    playSound('hand');
+  }
+
   if (dataConn.value?.open) dataConn.value.send({ type: 'hand', raised: handRaised.value })
   logAction(handRaised.value ? 'hand_raised' : 'hand_lowered', { meeting_code: route.params.code })
 }
@@ -2053,6 +2522,7 @@ async function scrollMessages() {
 function togglePanel(name) {
   activePanel.value = activePanel.value === name ? null : name
   if (name === 'chat') unreadCount.value = 0
+  if (name === 'activities') unreadActivitiesCount.value = 0
 
   // DAGDAG ITO: Buhayin ang Mini-Preview kapag binuksan ang Effects Panel
   if (name === 'effects') {
@@ -2066,6 +2536,9 @@ function togglePanel(name) {
 }
 
 async function leaveCall() {
+
+  playSound('leave');
+
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     isRecording.value = false;
     isUploading.value = true; 
@@ -2133,7 +2606,7 @@ function stopAllMedia() {
   }
 }
 
-function closeAll() { showEmojiPicker.value = false; showMoreDropdown.value = false }
+function closeAll() { showEmojiPicker.value = false; showMoreDropdown.value = false; showPinMenu.value = false; showWaitingOptions.value = null; }
 function applyTrackStates() {
   localStream?.getAudioTracks().forEach(t => (t.enabled = micOn.value))
   localStream?.getVideoTracks().forEach(t => (t.enabled = cameraOn.value))
@@ -2288,6 +2761,235 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+
+/* ========================
+   ACTIVITIES & POLLS UI
+   ======================== */
+.activities-panel-body { flex: 1; display: flex; flex-direction: column; overflow-y: auto; background: #202124; }
+.polls-list-view, .poll-create-view { display: flex; flex-direction: column; padding: 16px; gap: 16px; flex: 1; }
+.act-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.act-title { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #8ab4f8; font-weight: 500; }
+.btn-start-poll { background: #8ab4f8; color: #202124; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 500; cursor: pointer; }
+.btn-start-poll:hover { background: #aecbfa; }
+.no-activities { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #9aa0a6; font-size: 14px; gap: 12px; }
+
+/* POLL CARD */
+.poll-card { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.poll-q { font-size: 15px; font-weight: 500; color: #e8eaed; line-height: 1.4; }
+.poll-opts { display: flex; flex-direction: column; gap: 8px; }
+.poll-opt { background: #2d2e30; border-radius: 8px; padding: 12px; cursor: pointer; transition: background 0.2s, border 0.2s; border: 1px solid #3c4043; overflow: hidden; position: relative; }
+.poll-opt:hover:not(.disabled) { background: #3c4043; }
+.poll-opt.voted { border-color: #8ab4f8; }
+.poll-opt.disabled { cursor: default; }
+
+/* BAGONG DAGDAG PARA SA POLL CARD HEADER & FOOTER */
+.poll-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.poll-ended-badge { background: #3c4043; color: #9aa0a6; font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+.poll-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; min-height: 24px; }
+.poll-host-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.btn-icon-trash { background: none; border: none; color: #9aa0a6; cursor: pointer; padding: 6px; border-radius: 50%; display: flex; transition: background 0.2s, color 0.2s; margin-right: -6px; }
+.btn-icon-trash:hover { background: rgba(234, 67, 53, 0.1); color: #ea4335; }
+
+.opt-text-row { display: flex; align-items: center; gap: 12px; position: relative; z-index: 2; }
+.opt-radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #5f6368; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.poll-opt.voted .opt-radio { border-color: #8ab4f8; }
+.radio-filled { width: 8px; height: 8px; border-radius: 50%; background: #8ab4f8; }
+.opt-label { flex: 1; font-size: 14px; color: #e8eaed; }
+.opt-votes { font-size: 12px; color: #9aa0a6; font-weight: 500; }
+
+.opt-progress-bg { position: absolute; top: 0; left: 0; height: 100%; width: 100%; background: transparent; z-index: 1; pointer-events: none; }
+.opt-progress-bar { height: 100%; background: rgba(138, 180, 248, 0.15); transition: width 0.4s ease; border-radius: 8px 0 0 8px; }
+.poll-meta { font-size: 12px; color: #9aa0a6; text-align: right; }
+
+/* CREATE POLL UI */
+.create-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.create-header h4 { margin: 0; color: #e8eaed; font-size: 16px; font-weight: 500; }
+.btn-back { background: none; border: none; color: #9aa0a6; cursor: pointer; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+.btn-back:hover { background: #3c4043; color: white; }
+
+.poll-input { width: 100%; background: #2d2e30; border: 1px solid #5f6368; border-radius: 4px; padding: 12px 16px; color: #e8eaed; font-size: 14px; outline: none; transition: border-color 0.2s; }
+.poll-input:focus { border-color: #8ab4f8; }
+.poll-input.main-q { font-size: 15px; font-weight: 500; }
+
+.poll-opts-edit { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.opt-edit-row { display: flex; align-items: center; gap: 8px; }
+.btn-remove-opt { background: none; border: none; cursor: pointer; display: flex; padding: 8px; border-radius: 50%; }
+.btn-remove-opt:hover { background: #3c4043; }
+.btn-add-opt { background: none; border: none; color: #8ab4f8; font-size: 14px; font-weight: 500; cursor: pointer; text-align: left; padding: 8px 0; align-self: flex-start; }
+.btn-add-opt:hover { color: #aecbfa; }
+
+.poll-actions { display: flex; justify-content: flex-end; margin-top: auto; }
+.btn-launch { background: #8ab4f8; color: #202124; border: none; padding: 10px 24px; border-radius: 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+.btn-launch:hover:not(:disabled) { background: #aecbfa; }
+.btn-launch:disabled { background: #3c4043; color: #5f6368; cursor: not-allowed; }
+
+/* ========================
+   DISABLED BOTTOM BAR BUTTONS
+   ======================== */
+.ctrl-group-main:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.ctrl-group:has(.ctrl-group-main:disabled):hover {
+  background: #3c4043; /* Huwag i-highlight kung bawal i-click */
+}
+
+/* ========================
+   DISABLED BOTTOM BAR BUTTONS
+   ======================== */
+.ctrl-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.ctrl-btn:disabled:hover {
+  background: #3c4043; /* Tanggalin ang hover effect kapag disabled */
+  transform: none;
+}
+
+/* ========================
+   DISABLED CHAT UI
+   ======================== */
+.chat-input:disabled {
+  background: #2d2e30;
+  color: #5f6368;
+  cursor: not-allowed;
+}
+.chat-input:disabled::placeholder {
+  color: #ea4335; /* Kulay pula na gray para halatang disabled */
+  font-weight: 500;
+}
+.chat-attach:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ========================
+   HOST CONTROLS PANEL UI
+   ======================== */
+.host-panel-body {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+  flex: 1;
+  overflow-y: auto;
+  border-radius: 0 0 12px 12px;
+  scrollbar-width: thin; 
+  scrollbar-color: #3c4043 transparent;
+}
+.host-info-card {
+  background: rgba(255,255,255,0.05);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #9aa0a6;
+  line-height: 1.5;
+}
+.host-controls-wrapper {
+  border: 1px solid rgba(26, 115, 232, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.host-controls-header {
+  background: rgba(26, 115, 232, 0.15);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8ab4f8;
+  font-size: 14px;
+  font-weight: 500;
+}
+.host-control-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: transparent;
+}
+.control-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 16px;
+}
+.control-text strong { color: #e8eaed; font-size: 14px; font-weight: 500; }
+.control-text small { color: #9aa0a6; font-size: 12px; line-height: 1.4; }
+
+/* Toggle Switch CSS (Kung wala pa ito sa CSS mo, idagdag ito) */
+.switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #5f6368; transition: .4s; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; }
+input:checked + .slider { background-color: #1a73e8; }
+input:checked + .slider:before { transform: translateX(18px); }
+.slider.round { border-radius: 34px; }
+.slider.round:before { border-radius: 50%; }
+
+/* New Mic Indicator UI */
+.people-mic-indicator {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+}
+
+.people-mic-indicator.muted {
+    background-color: #ea4335; /* Standard Meet Muted Red */
+}
+
+.people-mic-indicator.speaking {
+    background-color: #8ab4f8; /* Standard Meet Speaking Blue */
+}
+
+.people-mic-indicator .muted-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Container ng sound waves (Tahimik State) */
+.people-mic-indicator .side-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+}
+
+/* Mga tuldok kapag tahimik */
+.people-mic-indicator .side-wave .s-bar {
+  width: 3px;
+  height: 4px;
+  background-color: #8ab4f8; /* FIX: Pinalitan natin ng BLUE mula sa Gray! */
+  border-radius: 4px;
+  transition: background-color 0.2s, height 0.2s;
+}
+
+/* ========================
+   WAVE ANIMATION (Kapareho ng Main Mic Button)
+   ======================== */
+.people-mic-indicator.speaking {
+  background-color: #a8c7fa; /* Light blue circle */
+}
+
+/* Kapag nagsasalita, magiging dark blue at magwi-wave */
+.people-mic-indicator.speaking .side-wave .s-bar {
+  background-color: #0842a0; /* Dark blue bars sa loob */
+  animation: side-bounce-wave 0.5s infinite alternate ease-in-out;
+}
+
+/* Iba't ibang height para maganda ang wave effect */
+.people-mic-indicator.speaking .side-wave .s-bar:nth-child(1) { height: 10px; animation-delay: 0s; }
+.people-mic-indicator.speaking .side-wave .s-bar:nth-child(2) { height: 16px; animation-delay: 0.15s; }
+.people-mic-indicator.speaking .side-wave .s-bar:nth-child(3) { height: 12px; animation-delay: 0.3s; }
+
+@keyframes side-bounce-wave {
+  0% { transform: scaleY(0.4); opacity: 0.8; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
 /* ========================
    DYNAMIC MIC BUTTON (Google Meet Style)
    ======================== */
@@ -2751,9 +3453,9 @@ onBeforeUnmount(() => {
 /* BAGONG FLOATING PANEL (Google Meet Style) */
 .side-panel { 
   position: absolute; 
-  top: 16px; /* Pantay sa itaas ng video! */
+  top: 16px; 
   right: 16px; 
-  bottom: 88px; /* Pantay sa ibaba ng video! */
+  bottom: 88px; 
   width: 360px; 
   background: #202124; 
   z-index: 25; 
@@ -2761,7 +3463,7 @@ onBeforeUnmount(() => {
   flex-direction: column; 
   border-radius: 12px; 
   box-shadow: 0 4px 16px rgba(0,0,0,0.3); 
-  overflow: hidden;   
+  overflow: visible; /* FIX: Pinalitan ng 'visible' mula 'hidden' para makalabas ang mga dropdown! */
 }
 
 /* SMOOTH TRANSITION */
@@ -2779,7 +3481,18 @@ onBeforeUnmount(() => {
   margin-bottom: 8px;
   opacity: 0.9;
 }
-.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #3c4043; flex-shrink: 0; }
+.panel-header { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  padding: 16px 20px; 
+  border-bottom: 1px solid #3c4043; 
+  flex-shrink: 0; 
+  border-radius: 12px 12px 0 0; /* FIX: Binigyan ng round kanto ang itaas */
+}
+.messages-list, .people-panel-body, .info-panel-body, .effects-scroll-area {
+  border-radius: 0 0 12px 12px;
+}
 .panel-header h3 { color: #e8eaed; font-size: 16px; font-weight: 500; margin: 0; }
 .panel-close { background: none; border: none; color: #9aa0a6; cursor: pointer; padding: 4px; border-radius: 50%; display: flex; transition: background .2s; }
 .panel-close:hover { background: #3c4043; }
@@ -3083,6 +3796,219 @@ input:checked + .slider:before { transform: translateX(18px); }
 .info-attachments-text { 
   font-size: 13px; 
   color: #9aa0a6; 
+}
+
+/* ========================
+   BOTTOM RIGHT & HOVER POPUPS
+   ======================== */
+.people-group-wrapper { display: flex; align-items: center; position: relative; gap: 8px; margin-right: 6px;}
+.people-btn-wrapper, .admit-pill-wrapper { position: relative; }
+
+.people-count-badge { background: transparent; border-left: 1px solid rgba(255,255,255,0.2); border-radius: 0; padding-left: 6px; position: static; height: auto; width: auto; font-size: 14px; font-weight: 500; color: #e8eaed; margin-left: 4px; }
+.util-btn.active .people-count-badge { border-color: transparent; }
+
+/* GREEN PILL */
+.admit-green-pill { background: #a8dab5; color: #0d652d; border: none; padding: 0 16px; height: 40px; border-radius: 20px; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s; }
+.admit-green-pill:hover { background: #81c995; }
+
+/* HOVER POPUPS */
+.hover-popup { 
+  position: absolute; 
+  bottom: calc(100% + 16px); 
+  right: 0; 
+  background: #2d2e30; 
+  border-radius: 12px; 
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5); 
+  z-index: 100; 
+  width: 320px; 
+  display: flex; 
+  flex-direction: column; 
+  /* Tinanggal natin ang overflow: hidden dito! */
+  cursor: default; 
+}
+
+/* INVISIBLE BRIDGE: Sasakupin nito ang gap para hindi mawala ang popup kapag inangat ang mouse */
+.hover-popup::after {
+  content: '';
+  position: absolute;
+  top: 100%; /* Magsisimula mismo sa ilalim ng popup */
+  left: 0;
+  width: 100%;
+  height: 24px; /* Sapat na haba para takpan ang dead zone papunta sa button */
+  background: transparent;
+}
+.admit-hover-popup { padding: 16px; gap: 16px; }
+.ah-header { font-size: 16px; font-weight: 500; color: #e8eaed; display: flex; align-items: center; gap: 12px; }
+.ah-badge { font-size: 11px; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; color: #9aa0a6; }
+.ah-actions { display: flex; gap: 12px; }
+.ah-btn-admit { flex: 1; background: #8ab4f8; color: #202124; border: none; padding: 10px; border-radius: 24px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.ah-btn-admit:hover { background: #9bbcf8; }
+.ah-btn-deny { flex: 1; background: transparent; color: #8ab4f8; border: 1px solid #5f6368; padding: 10px; border-radius: 24px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.ah-btn-deny:hover { background: rgba(138,180,248,0.04); border-color: #8ab4f8; }
+.ah-guest-info { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; }
+.ah-avatar { width: 40px; height: 40px; border-radius: 50%; background: #3c4043; display: flex; align-items: center; justify-content: center; }
+.ah-details { display: flex; flex-direction: column; }
+.ah-details strong { font-size: 14px; color: #e8eaed; font-weight: 500; }
+.ah-details span { font-size: 12px; color: #9aa0a6; }
+.ah-view-all { background: none; border: none; color: #8ab4f8; font-size: 14px; font-weight: 500; cursor: pointer; text-align: left; padding: 4px 0 0 0; }
+.ah-view-all:hover { text-decoration: underline; }
+
+.people-hover-popup { padding: 16px; gap: 16px; }
+.ph-title { font-size: 16px; font-weight: 500; color: #e8eaed; }
+.ph-btn-host { background: transparent; border: 1px solid #5f6368; color: #8ab4f8; padding: 10px; border-radius: 24px; font-size: 14px; font-weight: 500; cursor: pointer; text-align: center; }
+.ph-btn-host:hover { background: rgba(138,180,248,0.04); border-color: #8ab4f8; }
+.ph-list-box { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; }
+.ph-joined-text { font-size: 14px; font-weight: 500; color: #e8eaed; }
+.ph-just-you { font-size: 13px; color: #9aa0a6; }
+.ph-avatars { display: flex; gap: 8px; margin-top: 4px; }
+.ph-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 500; font-size: 16px; }
+.host-avatar { background: #8e24aa; }
+.guest-avatar { background: #00897b; }
+.ph-view-all { background: none; border: none; color: #8ab4f8; font-size: 14px; font-weight: 500; cursor: pointer; text-align: center; padding: 8px 0 0 0; border-top: 1px solid #3c4043; margin-top: auto;}
+.ph-view-all:hover { text-decoration: underline; }
+
+/* ========================
+   PEOPLE PANEL BODY UI
+   ======================== */
+/* ========================
+   PEOPLE PANEL BODY UI
+   ======================== */
+.people-panel-body { 
+  display: flex; 
+  flex-direction: column; 
+  padding: 16px; 
+  gap: 24px; 
+  flex: 1;
+  /* TINANGGAL: overflow-y: auto; dahil pinuputol nito ang menu! */
+}
+.people-search { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.05); padding: 10px 16px; border-radius: 4px; border: 1px solid #5f6368; }
+.people-search input { background: transparent; border: none; color: #e8eaed; font-size: 14px; flex: 1; outline: none; }
+.people-group-section { 
+  display: flex; 
+  flex-direction: column; 
+  border: 1px solid #3c4043; 
+  border-radius: 8px; 
+  overflow: visible; /* FIX: Ginawang visible para makalabas ang Dropdown Menu! */
+}
+.pg-header { border-radius: 8px 8px 0 0; }
+.participant-item:last-child { border-radius: 0 0 8px 8px; }
+.pg-header { display: flex; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.02); font-size: 13px; font-weight: 500; color: #e8eaed; border-bottom: 1px solid #3c4043; }
+.pg-actions-top { display: flex; justify-content: flex-end; padding: 8px 16px; }
+.btn-text-blue { background: none; border: none; color: #8ab4f8; font-size: 14px; font-weight: 500; cursor: pointer; }
+.btn-text-blue:hover { color: #aecbfa; }
+
+.participant-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; transition: background 0.2s; }
+.participant-item:hover { background: rgba(255,255,255,0.05); }
+.participant-avatar { width: 36px; height: 36px; border-radius: 50%; background: #3c4043; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-weight: 500; }
+.participant-name { flex: 1; display: flex; flex-direction: column; color: #e8eaed; font-size: 14px; font-weight: 500; }
+.host-label { font-size: 12px; color: #9aa0a6; font-weight: 400; margin-top: 2px;}
+.waiting-actions { display: flex; align-items: center; gap: 12px; }
+
+.menu-wrap { position: relative; display: flex; align-items: center; }
+.context-dropdown { 
+  position: absolute; 
+  top: 100%; 
+  right: 0; 
+  background: #2d2e30; 
+  border-radius: 8px; 
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5); 
+  padding: 8px 0; 
+  z-index: 1000; /* Tinaasan ng bongga para hindi matakpan ng kahit ano */
+}
+.context-dropdown button { background: none; border: none; color: #e8eaed; display: flex; align-items: center; gap: 12px; padding: 10px 20px; width: 100%; text-align: left; cursor: pointer; font-size: 14px; white-space: nowrap; }
+.context-dropdown button:hover { background: rgba(255,255,255,0.1); }
+
+/* Blue Speaking Indicator */
+/* ========================
+   NEW BLUE WAVE BADGE (People Panel)
+   ======================== */
+.blue-wave-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #a8c7fa; /* Light blue background */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse-blue 1s infinite alternate;
+}
+.blue-wave-badge .mini-wave {
+  gap: 2px;
+  height: 12px;
+}
+.blue-wave-badge .mini-bar {
+  width: 3px;
+  background: #0842a0; /* Dark blue wave sa loob */
+}
+
+@keyframes pulse-blue {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.1); opacity: 1; }
+}
+
+/* ========================
+   SUBMENU (Pin Dropdown)
+   ======================== */
+.pin-dropdown {
+  width: max-content;
+  padding: 0 !important; /* Reset padding para sa full width hover */
+}
+
+.submenu-container {
+  position: relative;
+  width: 100%;
+  padding: 8px 0;
+}
+
+.submenu-trigger {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.submenu-popup {
+  display: none;
+  position: absolute;
+  right: 100%; 
+  /* FIX: Ibinaba natin mula -8px papuntang 0 para hindi matakpan ang 'Meeting host' text */
+  top: 0; 
+  background: #2d2e30;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  padding: 8px 0;
+  width: max-content; 
+  z-index: 1001; 
+}
+
+.submenu-popup button {
+  background: none; 
+  border: none; 
+  color: #e8eaed; 
+  display: block; 
+  width: 100%; 
+  text-align: left; 
+  cursor: pointer; 
+  font-size: 14px; 
+  white-space: nowrap;
+  /* Reduced horizontal padding, especially on the right */
+  padding: 10px 16px 10px 20px; 
+}
+
+.submenu-popup button:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* Invisible Bridge para hindi magsara kapag tinawid ang mouse pakaliwa */
+.submenu-container::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 0;
+  width: 12px;
+  height: 100%;
+}
+
+.submenu-container:hover .submenu-popup {
+  display: block; /* Lilitaw lang kapag ni-hover ang container! */
 }
 
 /* ======================== */
